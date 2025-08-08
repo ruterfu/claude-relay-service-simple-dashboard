@@ -1,0 +1,3505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruter的CC统计面板</title>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary-color: #5e72e4;
+      --success-color: #2dce89;
+      --warning-color: #fb6340;
+      --info-color: #11cdef;
+      --danger-color: #f5365c;
+      --dark-color: #172b4d;
+      --secondary-color: #8898aa;
+      --light-color: #f4f5f7;
+      --white-color: #ffffff;
+      --shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%);
+      min-height: 100vh;
+      color: var(--dark-color);
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem 0;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .container {
+      max-width: 1450px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .logo i {
+      font-size: 2rem;
+    }
+
+    .auth-section {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .auth-input {
+      padding: 0.75rem 1rem;
+      border: 2px solid #e9ecef;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      width: 200px;
+      transition: all 0.3s;
+    }
+
+    .auth-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(94, 114, 228, 0.25);
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #4c63d2;
+      transform: translateY(-2px);
+      box-shadow: 0 7px 14px rgba(94, 114, 228, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .main-content {
+      padding: 2rem 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s;
+      border-radius: 0.75rem;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: white;
+    }
+
+    .stat-icon.primary { background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%); }
+    .stat-icon.success { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); }
+    .stat-icon.warning { background: linear-gradient(87deg, #fb6340 0, #fbb140 100%); }
+    .stat-icon.info { background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--dark-color);
+      margin-bottom: 0.1rem;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    .keys-table {
+      background: white;
+      box-shadow: var(--shadow);
+      overflow: visible;
+      position: relative;
+      border-radius: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .table-header {
+      background: var(--light-color);
+      padding: 1rem;
+      border-bottom: 1px solid #e9ecef;
+      border-radius: 0.75rem 0.75rem 0 0;
+      position: relative;
+    }
+
+    .table-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--dark-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .table-content {
+      padding: 0;
+      border-radius: 0 0 0.75rem 0.75rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: var(--light-color);
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      border-bottom: 2px solid #e9ecef;
+    }
+    tr {
+          border-bottom: 1px solid #f0f0f0;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:last-child:hover {
+      border-radius: 0 0 0.75rem 0.75rem;
+    }
+    
+    tbody tr:last-child:hover td:first-child {
+      border-bottom-left-radius: 0.75rem;
+    }
+    
+    tbody tr:last-child:hover td:last-child {
+      border-bottom-right-radius: 0.75rem;
+    }
+
+    td {
+      padding: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    tr:hover {
+      background: #f8f9fa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: rgba(45, 206, 137, 0.1);
+      color: var(--success-color);
+    }
+
+    .badge-warning {
+      background: rgba(251, 99, 64, 0.1);
+      color: var(--warning-color);
+    }
+
+    .badge-info {
+      background: rgba(17, 205, 239, 0.1);
+      color: var(--info-color);
+    }
+
+    .badge-gray {
+      background: rgba(136, 152, 170, 0.1);
+      color: var(--secondary-color);
+    }
+
+    .badge-light-green {
+      background: rgba(45, 206, 137, 0.15);
+      color: #1fa871;
+    }
+
+    .badge-dark-green {
+      background: rgba(45, 206, 137, 0.3);
+      color: #1a8a5c;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 4rem;
+      color: white;
+    }
+
+    .loading i {
+      font-size: 3rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: var(--danger-color);
+      color: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin: 1rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .model-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .model-tag {
+      background: rgba(94, 114, 228, 0.1);
+      color: var(--primary-color);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      display: inline-block;
+    }
+
+    .model-tag.inactive-window {
+      background: rgba(170, 180, 237, 0.1);
+      color: #aab4ed;
+    }
+
+    .model-tag.inactive-day {
+      background: rgba(108, 117, 125, 0.1);
+      color: #6c757d;
+    }
+
+    .model-tag:hover {
+      background: rgba(94, 114, 228, 0.2);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .model-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--dark-color);
+      color: white;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 10000;
+      margin-bottom: 0.5rem;
+      min-width: 250px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .model-tag:hover .model-tooltip {
+      display: block;
+    }
+
+    .model-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--dark-color);
+    }
+
+    .model-tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.25rem 0;
+      gap: 1rem;
+    }
+
+    .model-tooltip-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.75rem;
+    }
+
+    .model-tooltip-value {
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    .model-tooltip-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.2);
+      margin: 0.5rem 0;
+    }
+
+    .cost-value {
+      font-weight: 600;
+      color: var(--success-color);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: white;
+    }
+
+    .empty-state i {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.7;
+    }
+
+    .empty-state h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      opacity: 0.9;
+    }
+
+    .token-value {
+      cursor: pointer;
+      position: relative;
+      display: inline-block;
+      border-bottom: 1px dotted var(--secondary-color);
+    }
+
+    .token-value:hover::after {
+      content: attr(data-full);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--dark-color);
+      color: white;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      z-index: 1000;
+      margin-bottom: 0.25rem;
+    }
+
+    .token-value:hover::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--dark-color);
+      margin-bottom: -0.5rem;
+      z-index: 1000;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .input-label {
+      font-size: 0.9rem;
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    /* Progress bar styles - vertical layout */
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      width: 100%;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .window-bar {
+      margin-top: 0.7em;
+
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      background: linear-gradient(90deg, #2dce89 0%, #2dce89 60%, #fb6340 80%, #f5365c 100%);
+    }
+
+    .progress-fill.low {
+      background: #2dce89;
+    }
+
+    .progress-fill.medium {
+      background: #fb6340;
+    }
+
+    .progress-fill.high {
+      background: #f5365c;
+    }
+
+    .progress-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    /* Limits info */
+    .limits-cell {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .limits-badge {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      background: rgba(17, 205, 239, 0.1);
+      color: var(--info-color);
+      border-radius: 0.25rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .limits-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--dark-color);
+      color: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 10000;
+      margin-bottom: 0.5rem;
+      min-width: 280px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .limits-cell:hover .limits-tooltip {
+      display: block;
+    }
+
+    .limits-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--dark-color);
+    }
+
+    .limit-item {
+      margin: 0.75rem 0;
+    }
+
+    .limit-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+      font-size: 0.85rem;
+    }
+
+    .limit-progress-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 0.25rem 0;
+    }
+
+    .limit-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .limit-progress-fill.low {
+      background: rgba(45, 206, 137, 0.9);
+    }
+
+    .limit-progress-fill.medium {
+      background: rgba(251, 99, 64, 0.9);
+    }
+
+    .limit-progress-fill.high {
+      background: rgba(245, 54, 92, 0.9);
+    }
+
+    /* Tooltip for cost details */
+    .cost-cell {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .cost-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--dark-color);
+      color: white;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 10000;
+      margin-bottom: 0.5rem;
+      min-width: 200px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 第一行的 tooltip 显示在下方 */
+    .cost-cell.first-row .cost-tooltip {
+      bottom: auto;
+      top: 100%;
+      margin-bottom: 0;
+      margin-top: 0.5rem;
+    }
+
+    .cost-cell:hover .cost-tooltip {
+      display: block;
+    }
+
+    .cost-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--dark-color);
+    }
+
+    /* 第一行 tooltip 的箭头指向上方 */
+    .cost-cell.first-row .cost-tooltip::after {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: var(--dark-color);
+    }
+
+    .tooltip-progress {
+      margin: 0.5rem 0;
+    }
+
+    .tooltip-progress-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 0.25rem 0;
+    }
+
+    .tooltip-progress-fill {
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 3px;
+    }
+
+    /* Accounts section */
+    .accounts-section {
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    .section-header {
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .account-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s;
+    }
+
+    .account-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .account-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--dark-color);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .account-name i {
+      color: var(--primary-color);
+      font-size: 1.1rem;
+    }
+
+    .account-window-progress {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0.75rem 0;
+    }
+
+    .account-window-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #5e72e4 0%, #825ee4 100%);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .account-window-fill.window-low {
+      background: #2dce89;
+    }
+
+    .account-window-fill.window-medium {
+      background: #ffc107;
+    }
+
+    .account-window-fill.window-high {
+      background: #fb6340;
+    }
+
+    .account-window-fill.window-critical {
+      background: #f5365c;
+    }
+
+    /* Multi-segment progress bar */
+    .multi-segment-progress {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      position: relative;
+      display: flex;
+    }
+
+    .progress-segment {
+      height: 100%;
+      position: relative;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .progress-segment:hover {
+      opacity: 0.8;
+    }
+
+    .progress-segment.user-segment {
+      background: linear-gradient(90deg, #5e72e4 0%, #825ee4 100%);
+    }
+
+    .progress-segment.user-segment:nth-child(1) { 
+      background: #5e72e4; 
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+    .progress-segment.user-segment:nth-child(2) { background: #2dce89; }
+    .progress-segment.user-segment:nth-child(3) { background: #fb6340; }
+    .progress-segment.user-segment:nth-child(4) { background: #11cdef; }
+    .progress-segment.user-segment:nth-child(5) { background: #f5365c; }
+    .progress-segment.user-segment:nth-child(6) { background: #ffc107; }
+    .progress-segment.user-segment:nth-child(7) { background: #6f42c1; }
+    .progress-segment.user-segment:nth-child(8) { 
+      background: #fd7e14;
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* 只有一个分段时的圆角 */
+    .progress-segment.user-segment:first-child:last-child {
+      border-radius: 4px;
+    }
+
+    /* 最后一个分段的右圆角 */
+    .progress-segment.user-segment:last-child {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Tooltip for segments */
+    .segment-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #172b4d;
+      color: white;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 10000;
+      margin-bottom: 0.5rem;
+      min-width: 80px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .segment-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #172b4d;
+    }
+
+    .progress-segment:hover .segment-tooltip {
+      opacity: 1;
+    }
+
+    .account-window-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--secondary-color);
+    }
+
+    .account-window-time {
+      font-weight: 500;
+    }
+
+    .account-window-remaining {
+      color: var(--info-color);
+      font-weight: 600;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 95vw;
+      max-height: 90vh;
+      min-width: 800px;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 25px rgba(0, 0, 0, 0.3);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--dark-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--secondary-color);
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      transition: all 0.3s;
+    }
+
+    .modal-close:hover {
+      background: var(--light-color);
+      color: var(--dark-color);
+    }
+
+    .modal-body {
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .stats-day {
+      margin-bottom: 2rem;
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .stats-day-header {
+      background: var(--primary-color);
+      color: white;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    
+    .stats-cost {
+      font-weight: 700;
+      color: var(--success-color);
+      text-align: center;
+    }
+
+    .stats-day-content {
+      padding: 1rem;
+    }
+
+    .stats-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+      gap: 2rem;
+    }
+
+    .stats-entry:hover {
+      background: #f8f9fa;
+    }
+
+    .stats-entry:last-child {
+      border-bottom: none;
+    }
+
+    .stats-time {
+      font-weight: 600;
+      color: var(--dark-color);
+      font-family: monospace;
+    }
+
+    .stats-cost {
+      font-weight: 700;
+      color: var(--success-color);
+    }
+
+    .stats-models {
+      font-size: 0.85rem;
+      color: var(--secondary-color);
+      margin-top: 0.25rem;
+      font-family: 'Courier New', Courier, monospace;
+      white-space: pre;
+    }
+
+    .model-cost-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .model-cost-tag {
+      background: rgba(94, 114, 228, 0.1);
+      color: var(--primary-color);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .no-data-message {
+      text-align: center;
+      padding: 3rem;
+      color: var(--secondary-color);
+      font-style: italic;
+    }
+
+    /* Loading spinner for modal */
+    .modal-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+
+    .modal-loading i {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      animation: spin 1s linear infinite;
+    }
+
+    /* Responsive table wrapper for small screens */
+    @media (max-width: 1200px) {
+      .table-content {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      table {
+        min-width: 1000px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+      }
+      
+      .auth-section {
+        width: 100%;
+        flex-direction: column;
+      }
+      
+      .auth-input {
+        width: 100%;
+      }
+      
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 0.8rem;
+        min-width: 800px;
+      }
+
+      th, td {
+        padding: 0.5rem;
+      }
+
+      /* Modal responsive styling */
+      .modal-content {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
+        max-height: calc(100vh - 2rem);
+        padding: 1rem;
+      }
+
+      .modal-title {
+        font-size: 1.2rem;
+      }
+
+      .stats-day-header {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+      }
+
+      .stats-entry {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .stats-time {
+        margin-bottom: 0.25rem;
+      }
+
+      .stats-models {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .stats-cost {
+        align-self: flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <i class="fas fa-chart-line"></i>
+          <span>Ruter的CC统计面板</span>
+        </div>
+        <div class="auth-section" id="authSection">
+          <input type="password" id="apiKeyInput" class="auth-input" placeholder="输入 cr_ 开头的 API Key" style="display: none;">
+          <button id="authButton" class="btn btn-primary" onclick="authenticate()" style="display: none;">
+            <i class="fas fa-lock"></i>
+            认证
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container">
+      <!-- Summary Stats -->
+      <div class="stats-grid" id="summaryStats" style="display: none;">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div>
+              <div class="stat-value" id="totalKeys">0</div>
+              <div class="stat-label">API Key 总数</div>
+            </div>
+            <div class="stat-icon primary">
+              <i class="fas fa-key"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div>
+              <div class="stat-value" id="todayRequests">0</div>
+              <div class="stat-label">今日请求数</div>
+            </div>
+            <div class="stat-icon success">
+              <i class="fas fa-exchange-alt"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div>
+              <div class="stat-value" id="todayTokens">0</div>
+              <div class="stat-label">今日Token用量</div>
+            </div>
+            <div class="stat-icon warning">
+              <i class="fas fa-coins"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div>
+              <div class="stat-value" id="todayCost">$0.00</div>
+              <div class="stat-label">今日总消耗</div>
+            </div>
+            <div class="stat-icon info">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accounts Section -->
+      <div class="accounts-section" id="accountsSection" style="display: none;">
+       
+        <div class="accounts-grid" id="accountsGrid">
+          <!-- Account cards will be inserted here -->
+        </div>
+      </div>
+
+      <!-- API Keys Table -->
+      <div class="keys-table" id="keysTable" style="display: none;">
+        <div class="table-header">
+          <h2 class="table-title">
+            <i class="fas fa-list"></i>
+            API Key 详细信息
+          </h2>
+        </div>
+        <div class="table-content">
+          <table>
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>状态</th>
+                <th>窗口消耗</th>
+                <th>今日请求</th>
+                <th>今日Token</th>
+                <th>今日消耗</th>
+                <th>本月消耗</th>
+                <th>限制设置</th>
+                <th>使用模型</th>
+                <th>最后使用</th>
+              </tr>
+            </thead>
+            <tbody id="keysTableBody">
+              <!-- Data will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loadingState" class="loading" style="display: none;">
+        <i class="fas fa-spinner"></i>
+        <h2>正在加载统计数据...</h2>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="fas fa-chart-bar"></i>
+        <h2>欢迎使用 API Key 统计面板</h2>
+        <p>正在加载数据...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div id="errorMessage" class="error-message" style="display: none;">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="errorText"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Statistics Modal -->
+  <div id="statsModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">
+          <i class="fas fa-chart-line"></i>
+          详细统计
+        </h2>
+        <button class="modal-close" onclick="closeStatsModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <div class="modal-loading">
+          <i class="fas fa-spinner"></i>
+          <p>正在加载统计数据...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_URL = '/simple-board/query_all';
+    const DAILY_TOTAL_LIMIT = 480; // 每日总限额
+    const MIN_UNRESTRICTED_LIMIT = 100; // 无限制key的最小限额
+    const AUTH_TOKEN_KEY = 'api_stats_auth_token';
+    
+    let statsData = null;
+    let authToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    let modelMap = {}; // Will be populated from API response
+
+    function formatModelName(model) {
+      // Use model map from API if available
+      if (modelMap && modelMap[model]) {
+        return modelMap[model];
+      }
+      
+      // Fallback: clean up the model name if no mapping exists
+      return model.replace('claude-', '').replace('-20', '-').replace('_', '-');
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(2) + 'K';
+      }
+      return num.toString();
+    }
+
+    function formatNumberWithTooltip(num) {
+      const formatted = formatNumber(num);
+      // Only add tooltip if the number is formatted (contains K or M)
+      if (formatted.includes('K') || formatted.includes('M')) {
+        const full = new Intl.NumberFormat('zh-CN').format(num);
+        return `<span class="token-value" data-full="${full}">${formatted}</span>`;
+      }
+      // For raw numbers, no tooltip needed
+      return formatted;
+    }
+
+    function formatCost(cost) {
+      return '$' + cost.toFixed(2);
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '从未使用';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function calculateCostLimits(keys) {
+      // 计算每个key的实际消耗限制
+      let totalReserved = 0;
+      let unrestrictedKeys = [];
+      
+      keys.forEach(key => {
+        if (key.daily_cost_limit > 0) {
+          totalReserved += key.daily_cost_limit;
+        } else {
+          unrestrictedKeys.push(key);
+        }
+      });
+      
+      // 计算剩余额度
+      let remaining = DAILY_TOTAL_LIMIT - totalReserved;
+      remaining = Math.max(remaining, MIN_UNRESTRICTED_LIMIT);
+      
+      // 为每个key设置计算后的限制
+      const perKeyLimit = unrestrictedKeys.length > 0 ? remaining / unrestrictedKeys.length : 0;
+      
+      keys.forEach(key => {
+        key.calculated_limit = key.daily_cost_limit > 0 ? key.daily_cost_limit : perKeyLimit;
+      });
+      
+      return keys;
+    }
+
+    function createProgressBar(current, limit) {
+      const percentage = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
+      let colorClass = 'low';
+      if (percentage > 80) colorClass = 'high';
+      else if (percentage > 60) colorClass = 'medium';
+      
+      return `
+        <div class="progress-container">
+          <span class="progress-text">${formatCost(current)}</span>
+          <div class="progress-bar">
+            <div class="progress-fill ${colorClass}" style="width: ${percentage}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function createCostCell(key, isFirstRow = false) {
+      const actualTodayCost = key.actual_today_cost || 0;
+      const percentage = key.calculated_limit > 0 ? Math.min((actualTodayCost / key.calculated_limit) * 100, 100) : 0;
+      
+      // Add window consumption info if available
+      let windowInfo = '';
+      if (key.window_info && key.window_info.cost !== undefined) {
+        const startHour = key.window_info.start_hour;
+        const startMin = key.window_info.start_min;
+        const endHour = key.window_info.end_hour;
+        const endMin = key.window_info.end_min;
+        const windowCost = key.window_info.cost;
+        
+        windowInfo = `
+            <div class="model-tooltip-divider"></div>
+            <div style="color: #11cdef; font-weight: 600;">窗口统计</div>
+            <div>(${startHour}:${String(startMin).padStart(2, '0')} - ${endHour}:${String(endMin).padStart(2, '0')}) ${formatCost(windowCost)}</div>
+        `;
+      }
+      
+      return `
+        <div class="cost-cell ${isFirstRow ? 'first-row' : ''}">
+          ${createProgressBar(actualTodayCost, key.calculated_limit)}
+          <div class="cost-tooltip">
+            <div><strong>今日消耗详情</strong></div>
+            <div>当前: ${formatCost(actualTodayCost)} 预期额度: ${formatCost(key.calculated_limit)}</div>
+            <div>使用率: ${percentage.toFixed(2)}%</div>
+            <div class="tooltip-progress">
+              <div class="tooltip-progress-bar">
+                <div class="tooltip-progress-fill" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+            ${key.daily_cost_limit > 0 ? '<div style="color: #ffd700">⚠️ 已设置消耗限制</div>' : '<div style="opacity: 0.7">建议额度</div>'}
+            ${windowInfo}
+          </div>
+        </div>
+      `;
+    }
+
+    function createWindowCostCell(key, accounts, allKeys) {
+      // 检查是否有当前活跃的窗口期
+      let windowCost = 0;
+      let hasWindow = false;
+      
+      const now = new Date();
+      if (accounts && accounts.length > 0) {
+        for (const account of accounts) {
+          if (account.window_start && account.window_end) {
+            const ws = new Date(account.window_start);
+            const we = new Date(account.window_end);
+            if (now >= ws && now < we) {
+              hasWindow = true;
+              // 从 key.window_info.cost 获取窗口消耗
+              if (key.window_info && key.window_info.cost !== undefined) {
+                windowCost = key.window_info.cost;
+              }
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!hasWindow) {
+        return '<span style="color: #8898aa; font-size: 0.85rem;">$0.00</span>';
+      }
+      
+      // 计算所有用户的窗口消耗总和
+      let totalWindowCost = 0;
+      if (allKeys && Array.isArray(allKeys)) {
+        allKeys.forEach(k => {
+          if (k.window_info && k.window_info.cost !== undefined) {
+            totalWindowCost += k.window_info.cost;
+          }
+        });
+      }
+      
+      // 如果总消耗为0，则所有进度条都是0%
+      const percentage = totalWindowCost > 0 ? Math.min((windowCost / totalWindowCost) * 100, 100) : 0;
+      
+      let colorClass = 'low';
+      if (percentage > 80) colorClass = 'high';
+      else if (percentage > 60) colorClass = 'medium';
+      
+      return `
+        <div class="progress-container">
+          <span class="progress-text">${formatCost(windowCost)}</span>
+          <div class="progress-bar">
+            <div class="progress-fill ${colorClass}" style="width: ${percentage}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function createLimitsInfo(key) {
+      // 检查是否有任何限制
+      const hasLimits = key.daily_cost_limit > 0 || 
+                       key.rate_limit_window > 0 || 
+                       key.rate_limit_requests > 0 ||
+                       key.token_limit > 0 ||
+                       key.concurrency_limit > 0;
+      
+      if (!hasLimits) {
+        return '<span style="color: #8898aa; font-size: 0.85rem;">无限制</span>';
+      }
+      
+      // 构建tooltip内容
+      let tooltipContent = [];
+      
+      // 每日消耗限制
+      if (key.daily_cost_limit > 0) {
+        const used = key.actual_today_cost || 0;
+        const limit = key.daily_cost_limit;
+        const percentage = Math.min((used / limit) * 100, 100);
+        let colorClass = 'low';
+        if (percentage > 80) colorClass = 'high';
+        else if (percentage > 60) colorClass = 'medium';
+        
+        tooltipContent.push(`
+          <div class="limit-item">
+            <div class="limit-label">
+              <span>每日 ${formatCost(limit)}</span>
+              <span>已使用 ${formatCost(used)}</span>
+            </div>
+            <div class="limit-progress-bar">
+              <div class="limit-progress-fill ${colorClass}" style="width: ${percentage}%"></div>
+            </div>
+          </div>
+        `);
+      }
+      
+      // 时间窗口限制 - 请求次数
+      if (key.rate_limit_window > 0 && key.rate_limit_requests > 0) {
+        const windowMinutes = Math.round(key.rate_limit_window / 60);
+        // 使用从API返回的实际窗口数据
+        const currentRequests = key.window_current_requests || 0;
+        const percentage = Math.min((currentRequests / key.rate_limit_requests) * 100, 100);
+        let colorClass = 'low';
+        if (percentage > 80) colorClass = 'high';
+        else if (percentage > 60) colorClass = 'medium';
+        
+        tooltipContent.push(`
+          <div class="limit-item">
+            <div class="limit-label">
+              <span>每${windowMinutes}分 ${formatNumber(key.rate_limit_requests)}次</span>
+              <span>目前 ${formatNumber(currentRequests)}</span>
+            </div>
+            <div class="limit-progress-bar">
+              <div class="limit-progress-fill ${colorClass}" style="width: ${percentage}%"></div>
+            </div>
+          </div>
+        `);
+      }
+      
+      // 时间窗口限制 - Token
+      if (key.rate_limit_window > 0 && key.token_limit > 0) {
+        const windowMinutes = Math.round(key.rate_limit_window / 60);
+        // 使用从API返回的实际窗口数据
+        const currentTokens = key.window_current_tokens || 0;
+        const percentage = Math.min((currentTokens / key.token_limit) * 100, 100);
+        let colorClass = 'low';
+        if (percentage > 80) colorClass = 'high';
+        else if (percentage > 60) colorClass = 'medium';
+        
+        tooltipContent.push(`
+          <div class="limit-item">
+            <div class="limit-label">
+              <span>每${windowMinutes}分 ${formatNumber(key.token_limit)} tokens</span>
+              <span>目前 ${formatNumber(currentTokens)}</span>
+            </div>
+            <div class="limit-progress-bar">
+              <div class="limit-progress-fill ${colorClass}" style="width: ${percentage}%"></div>
+            </div>
+          </div>
+        `);
+      }
+      
+      // 并发限制
+      if (key.concurrency_limit > 0) {
+        tooltipContent.push(`
+          <div class="limit-item">
+            <div class="limit-label">
+              <span>并发 ${key.concurrency_limit}</span>
+              <span></span>
+            </div>
+          </div>
+        `);
+      }
+      
+      return `
+        <div class="limits-cell">
+          <span class="limits-badge">有限制</span>
+          <div class="limits-tooltip">
+            ${tooltipContent.join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function createMultiSegmentProgress(userCosts, totalLimit, isWeekly = false) {
+      if (!userCosts || userCosts.length === 0) {
+        return `<div class="multi-segment-progress"></div>`;
+      }
+      
+      // 按消耗从多到少排序
+      const sortedUsers = userCosts.sort((a, b) => b.cost - a.cost);
+      
+      // 计算总消耗
+      const totalCost = sortedUsers.reduce((sum, user) => sum + user.cost, 0);
+      
+      let segments = '';
+      
+      // 为有消耗的用户创建分段
+      sortedUsers.forEach(user => {
+        if (user.cost > 0) {
+          const percentage = (user.cost / totalLimit) * 100;
+          segments += `
+            <div class="progress-segment user-segment" style="width: ${percentage}%">
+              <div class="segment-tooltip">${user.name}: ${formatCost(user.cost)}</div>
+            </div>
+          `;
+        }
+      });
+      
+      return `<div class="multi-segment-progress window-bar">${segments}</div>`;
+    }
+
+    function createWeeklyWindowCard(account, userWeeklyCosts) {
+      const now = new Date();
+      
+      // Calculate this week's Monday and Sunday
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days
+      
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + mondayOffset);
+      monday.setHours(0, 0, 0, 0);
+      
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+      
+      // Calculate time progress (current time to end of Sunday)
+      const totalWeekDuration = sunday - monday;
+      const elapsed = now - monday;
+      const remaining = sunday - now;
+      const timeProgress = Math.min((elapsed / totalWeekDuration) * 100, 100);
+      
+      // Format remaining time
+      const remainingDays = Math.floor(remaining / (1000 * 60 * 60 * 24));
+      const remainingHours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const remainingMinutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      
+      let remainingText = '';
+      if (remainingDays > 0) {
+        remainingText = `剩余 ${remainingDays}天${remainingHours}小时${remainingMinutes}分钟`;
+      } else if (remainingHours > 0) {
+        remainingText = `剩余 ${remainingHours}小时${remainingMinutes}分钟`;
+      } else {
+        remainingText = `剩余 ${remainingMinutes}分钟`;
+      }
+      
+      // Calculate weekly cost from all models in statsData
+      let weeklyCost = 0;
+      if (statsData && statsData.model_detailed_stats) {
+        const weekStartStr = monday.toISOString().split('T')[0];
+        const weekEndStr = sunday.toISOString().split('T')[0];
+        
+        // Iterate through all models
+        Object.keys(statsData.model_detailed_stats).forEach(modelName => {
+          const modelData = statsData.model_detailed_stats[modelName];
+          
+          Object.keys(modelData).forEach(dateStr => {
+            // Check if this date is within this week
+            if (dateStr >= weekStartStr && dateStr <= weekEndStr) {
+              const dayData = modelData[dateStr];
+              if (dayData && Array.isArray(dayData)) {
+                dayData.forEach(entry => {
+                  if (entry.cost) {
+                    weeklyCost += entry.cost;
+                  }
+                });
+              }
+            }
+          });
+        });
+      }
+      
+      const weeklyLimit = 120 * 30; // 3600
+      const costPercentage = Math.min((weeklyCost / weeklyLimit) * 100, 100);
+      
+      // Determine color class based on percentage
+      let costColorClass = 'window-low';
+      if (costPercentage >= 80) {
+        costColorClass = 'window-critical';
+      } else if (costPercentage >= 60) {
+        costColorClass = 'window-high';
+      } else if (costPercentage >= 30) {
+        costColorClass = 'window-medium';
+      } else {
+        costColorClass = 'window-low';
+      }
+      
+      // Format week range with full dates
+      const mondayStr = `${monday.getFullYear()}年${monday.getMonth() + 1}月${monday.getDate()}日`;
+      const sundayStr = `${sunday.getFullYear()}年${sunday.getMonth() + 1}月${sunday.getDate()}日`;
+      
+      // Calculate which week of the month this is
+      const firstDayOfMonth = new Date(monday.getFullYear(), monday.getMonth(), 1);
+      const mondayOfFirstWeek = new Date(firstDayOfMonth);
+      const firstDayWeekDay = firstDayOfMonth.getDay();
+      const firstMondayOffset = firstDayWeekDay === 0 ? -6 : 1 - firstDayWeekDay;
+      mondayOfFirstWeek.setDate(firstDayOfMonth.getDate() + firstMondayOffset);
+      
+      const weekNumber = Math.floor((monday - mondayOfFirstWeek) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      
+      const weekRange = `${mondayStr} - ${sundayStr}，第${weekNumber}周`;
+      
+      // Create card
+      const card = document.createElement('div');
+      card.className = 'account-card';
+      card.innerHTML = `
+        <div class="account-name">
+          <i class="fas fa-calendar-week"></i>
+          周统计（8月28日后生效）
+          <span style="font-size: 0.75rem; color: var(--secondary-color); margin-left: 0.5rem;">(${weekRange})</span>
+        </div>
+        
+        <!-- Progress Bars in One Row -->
+        <div style="display: flex; gap: 1rem; margin: 0.5rem 0;">
+          <!-- Time Progress Bar (Left) -->
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; min-height: 1.2rem;">
+              <span style="font-size: 0.85rem; color: var(--secondary-color);">剩余天数</span>
+              <span style="font-size: 0.85rem; color: var(--info-color); font-weight: 600;">${remainingText}</span>
+            </div>
+            <div class="account-window-progress">
+              <div class="account-window-fill" style="width: ${timeProgress}%"></div>
+            </div>
+          </div>
+          
+          <!-- Cost Progress Bar (Right) -->
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; min-height: 1.2rem;">
+              <span style="font-size: 0.85rem; color: var(--secondary-color);">估算总消耗</span>
+              <span style="font-size: 0.85rem; font-weight: 600; color: var(--dark-color);">
+                $${weeklyCost.toFixed(2)} / $${weeklyLimit.toFixed(0)}
+              </span>
+            </div>
+            ${createMultiSegmentProgress(userWeeklyCosts || [], weeklyLimit, true)}
+          </div>
+        </div>
+      `;
+      
+      return card;
+    }
+
+    function getApiKeyStatus(key, accounts) {
+      const lastUsedTime = key.last_used_at ? new Date(key.last_used_at) : null;
+      const now = new Date();
+      
+      // Check if there's a valid window
+      let windowStart = null;
+      let windowEnd = null;
+      
+      if (accounts && accounts.length > 0) {
+        for (const account of accounts) {
+          if (account.window_start && account.window_end) {
+            const ws = new Date(account.window_start);
+            const we = new Date(account.window_end);
+            if (now >= ws && now < we) {
+              windowStart = ws;
+              windowEnd = we;
+              break;
+            }
+          }
+        }
+      }
+      
+      // If never used
+      if (!lastUsedTime || key.last_used_at === '') {
+        return { badge: 'badge-gray', text: '正常' };
+      }
+      
+      // Check if last used is 24 hours ago
+      const hoursDiff = (now - lastUsedTime) / (1000 * 60 * 60);
+      if (hoursDiff >= 24) {
+        return { badge: 'badge-gray', text: '正常' };
+      }
+      
+      // If there's a window period
+      if (windowStart && windowEnd) {
+        // Check if last used is within window
+        if (lastUsedTime >= windowStart && lastUsedTime < windowEnd) {
+          // Check if used within last 30 minutes
+          const minutesDiff = (now - lastUsedTime) / (1000 * 60);
+          if (minutesDiff <= 30) {
+            return { badge: 'badge-dark-green', text: '活跃' };
+          } else {
+            return { badge: 'badge-light-green', text: '活跃' };
+          }
+        } else {
+          // Not used in current window
+          return { badge: 'badge-gray', text: '正常' };
+        }
+      }
+      
+      // No window, but used within 24 hours
+      return { badge: 'badge-gray', text: '正常' };
+    }
+
+    function displayAccounts(accounts) {
+      const accountsSection = document.getElementById('accountsSection');
+      const accountsGrid = document.getElementById('accountsGrid');
+      
+      if (!accounts || accounts.length === 0) {
+        accountsSection.style.display = 'none';
+        return;
+      }
+      
+      accountsGrid.innerHTML = '';
+      
+      // 获取用户消耗数据（从全局的statsData中获取）
+      let userWindowCosts = [];
+      let userWeeklyCosts = [];
+      
+      if (statsData && statsData.data) {
+        statsData.data.forEach(key => {
+          // 窗口消耗
+          const windowCost = (key.window_info && key.window_info.cost !== undefined) ? key.window_info.cost : 0;
+          userWindowCosts.push({ name: key.name, cost: windowCost });
+          
+          // 计算实际的周消耗（从 model_detailed_stats 中计算）
+          let weeklyCost = 0;
+          const now = new Date();
+          const dayOfWeek = now.getDay();
+          const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          
+          const monday = new Date(now);
+          monday.setDate(now.getDate() + mondayOffset);
+          monday.setHours(0, 0, 0, 0);
+          
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+          
+          const weekStartStr = monday.toISOString().split('T')[0];
+          const weekEndStr = sunday.toISOString().split('T')[0];
+          
+          // 从 detailed_stats 中计算这个用户的周消耗
+          if (statsData.detailed_stats && statsData.detailed_stats[key.name]) {
+            const userDetailedStats = statsData.detailed_stats[key.name];
+            Object.keys(userDetailedStats).forEach(dateStr => {
+              if (dateStr >= weekStartStr && dateStr <= weekEndStr) {
+                const dayData = userDetailedStats[dateStr];
+                if (dayData && Array.isArray(dayData)) {
+                  dayData.forEach(entry => {
+                    weeklyCost += entry.cost || 0;
+                  });
+                }
+              }
+            });
+          }
+          
+          userWeeklyCosts.push({ name: key.name, cost: weeklyCost });
+        });
+      }
+      
+      // Check if there are any active window accounts
+      let hasActiveWindows = false;
+      accounts.forEach(account => {
+        if (account.window_start && account.window_end) {
+          const now = new Date();
+          const windowStart = new Date(account.window_start);
+          const windowEnd = new Date(account.window_end);
+          if (now < windowEnd) {
+            hasActiveWindows = true;
+          }
+        }
+      });
+      
+      // Add weekly window statistics first if no active windows
+      if (!hasActiveWindows && accounts.length > 0) {
+        const weeklyCard = createWeeklyWindowCard(accounts[0], userWeeklyCosts);
+        accountsGrid.appendChild(weeklyCard);
+      }
+      
+      accounts.forEach(account => {
+        if (!account.window_start || !account.window_end) return;
+        
+        const now = new Date();
+        const windowStart = new Date(account.window_start);
+        const windowEnd = new Date(account.window_end);
+        
+        // Skip if window has expired
+        if (now >= windowEnd) return;
+        
+        // Calculate time progress
+        const totalDuration = windowEnd - windowStart;
+        const elapsed = now - windowStart;
+        const remaining = windowEnd - now;
+        const timeProgress = Math.min((elapsed / totalDuration) * 100, 100);
+        
+        // Calculate cost progress
+        const windowCost = account.window_cost || 0;
+        const windowLimit = account.window_limit || 120;
+        const costPercentage = Math.min((windowCost / windowLimit) * 100, 100);
+        
+        // Determine color class based on percentage
+        let costColorClass = 'window-low';
+        if (costPercentage >= 80) {
+          costColorClass = 'window-critical';
+        } else if (costPercentage >= 60) {
+          costColorClass = 'window-high';
+        } else if (costPercentage >= 30) {
+          costColorClass = 'window-medium';
+        } else {
+          costColorClass = 'window-low';
+        }
+        
+        // Format times
+        const startHour = windowStart.getHours();
+        const startMin = windowStart.getMinutes();
+        const endHour = windowEnd.getHours();
+        const endMin = windowEnd.getMinutes();
+        const timeRange = `${startHour}:${String(startMin).padStart(2, '0')} - ${endHour}:${String(endMin).padStart(2, '0')}`;
+        
+        // Format remaining time
+        const remainingMinutes = Math.floor(remaining / (1000 * 60));
+        const remainingHours = Math.floor(remainingMinutes / 60);
+        const remainingMins = remainingMinutes % 60;
+        
+        let remainingText = '';
+        if (remainingHours > 0) {
+          remainingText = `剩余 ${remainingHours}小时${remainingMins}分钟`;
+        } else {
+          remainingText = `剩余 ${remainingMins}分钟`;
+        }
+        
+        // Create account card
+        const card = document.createElement('div');
+        card.className = 'account-card';
+        card.innerHTML = `
+          <div class="account-name">
+            <i class="fas fa-clock"></i>
+            窗口统计 ${account.name}
+            <span style="font-size: 0.75rem; color: var(--secondary-color); margin-left: 0.5rem;">(${timeRange})</span>
+          </div>
+          
+          <!-- Progress Bars in One Row -->
+          <div style="display: flex; gap: 1rem; margin: 0.5rem 0;">
+            <!-- Time Progress Bar (Left) -->
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; min-height: 1.2rem;">
+                <span style="font-size: 0.85rem; color: var(--secondary-color);">剩余时长</span>
+                <span style="font-size: 0.85rem; color: var(--info-color); font-weight: 600;">${remainingText}</span>
+              </div>
+              <div class="account-window-progress">
+                <div class="account-window-fill" style="width: ${timeProgress}%"></div>
+              </div>
+            </div>
+            
+            <!-- Cost Progress Bar (Right) -->
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; min-height: 1.2rem;">
+                <span style="font-size: 0.85rem; color: var(--secondary-color);">窗口期消耗估算</span>
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--dark-color);">
+                  $${windowCost.toFixed(2)} / $${windowLimit.toFixed(0)}
+                </span>
+              </div>
+              ${createMultiSegmentProgress(userWindowCosts, windowLimit)}
+            </div>
+          </div>
+        `;
+        
+        accountsGrid.appendChild(card);
+      });
+      
+      // Add weekly window statistics after regular window statistics if there are active windows
+      if (hasActiveWindows && accounts.length > 0) {
+        const weeklyCard = createWeeklyWindowCard(accounts[0], userWeeklyCosts);
+        accountsGrid.appendChild(weeklyCard);
+      }
+      
+      if (accountsGrid.children.length > 0) {
+        accountsSection.style.display = 'block';
+      } else {
+        accountsSection.style.display = 'none';
+      }
+    }
+
+    function showError(message) {
+      document.getElementById('errorMessage').style.display = 'flex';
+      document.getElementById('errorText').textContent = message;
+      setTimeout(() => {
+        document.getElementById('errorMessage').style.display = 'none';
+      }, 5000);
+    }
+
+    function hideAllStates() {
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('summaryStats').style.display = 'none';
+      document.getElementById('accountsSection').style.display = 'none';
+      document.getElementById('keysTable').style.display = 'none';
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    async function loadStats(isInitialLoad = false) {
+      // Only show loading state on initial load
+      if (isInitialLoad) {
+        hideAllStates();
+        document.getElementById('loadingState').style.display = 'block';
+      }
+
+      try {
+        // Prepare request body
+        const requestBody = {};
+        if (authToken) {
+          requestBody.auth_token = authToken;
+        }
+        
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          // Check if it's an auth failure
+          if (response.status === 401) {
+            showAuthInput();
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            authToken = null;
+            return;
+          }
+          throw new Error('加载统计数据失败，可能当前页面不对外开放。');
+        }
+
+        const data = await response.json();
+        
+        // Check if response indicates failure
+        if (data.success === false) {
+          throw new Error('加载统计数据失败，可能当前页面不对外开放。');
+        }
+        
+        // Store auth token if returned
+        if (data.auth_token) {
+          authToken = data.auth_token;
+          localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+        }
+        
+        statsData = data;
+        
+        // Update model map from API response
+        if (data.model_map) {
+          modelMap = data.model_map;
+        }
+        
+        // If this is a refresh and data is already displayed, just update the data
+        if (!isInitialLoad && document.getElementById('summaryStats').style.display === 'grid') {
+          updateStatsData(data);
+        } else {
+          displayStats(data);
+        }
+      } catch (error) {
+        // Check if we need authentication
+        if (error.message && (error.message.includes('401') || error.message.includes('authentication'))) {
+          showAuthInput();
+        } else {
+          // Only show error on initial load or if stats are not currently displayed
+          if (isInitialLoad || document.getElementById('summaryStats').style.display !== 'grid') {
+            hideAllStates();
+            document.getElementById('errorMessage').style.display = 'flex';
+            document.getElementById('errorText').textContent = error.message === 'Failed to fetch' 
+              ? '当前无法打开页面，可能当前页面不对你开放' 
+              : error.message;
+          }
+        }
+      }
+    }
+    
+    function showAuthInput() {
+      hideAllStates();
+      document.getElementById('apiKeyInput').style.display = 'block';
+      document.getElementById('authButton').style.display = 'block';
+      document.getElementById('emptyState').style.display = 'block';
+      const emptyStateEl = document.getElementById('emptyState');
+      emptyStateEl.innerHTML = `
+        <i class="fas fa-lock"></i>
+        <h2>需要认证</h2>
+        <p>请输入 cr_ 开头的 API Key 进行认证</p>
+      `;
+    }
+    
+    async function authenticate() {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      
+      if (!apiKey) {
+        showError('请输入 API Key');
+        return;
+      }
+      
+      if (!apiKey.startsWith('cr_')) {
+        showError('API Key 必须以 cr_ 开头');
+        return;
+      }
+      
+      // Disable button during authentication
+      const authButton = document.getElementById('authButton');
+      authButton.disabled = true;
+      authButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 认证中...';
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_key: apiKey })
+        });
+        
+        if (!response.ok) {
+          throw new Error('认证失败');
+        }
+        
+        const data = await response.json();
+        
+        // Store auth token
+        if (data.auth_token) {
+          authToken = data.auth_token;
+          localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+        }
+        
+        // Hide auth section and display stats
+        document.getElementById('apiKeyInput').style.display = 'none';
+        document.getElementById('authButton').style.display = 'none';
+        
+        // Display the stats
+        statsData = data;
+        
+        // Update model map from API response
+        if (data.model_map) {
+          modelMap = data.model_map;
+        }
+        
+        displayStats(data);
+        
+      } catch (error) {
+        showError(error.message || '认证失败');
+      } finally {
+        // Re-enable button
+        authButton.disabled = false;
+        authButton.innerHTML = '<i class="fas fa-lock"></i> 认证';
+      }
+    }
+    
+    function updateStatsData(data) {
+      // First calculate actual today costs from model_stats_daily
+      data.data.forEach(key => {
+        let actualTodayCost = 0;
+        if (key.model_stats_daily && Array.isArray(key.model_stats_daily)) {
+          key.model_stats_daily.forEach(model => {
+            actualTodayCost += model.cost || 0;
+          });
+        }
+        key.actual_today_cost = actualTodayCost;
+      });
+      
+      // Calculate cost limits for all keys
+      data.data = calculateCostLimits(data.data);
+      
+      // Calculate totals using actual costs
+      let totalTodayRequests = 0;
+      let totalTodayTokens = 0;
+      let totalTodayCost = 0;
+      
+      data.data.forEach(key => {
+        totalTodayRequests += key.today_requests;
+        totalTodayTokens += key.today_tokens;
+        totalTodayCost += key.actual_today_cost;
+      });
+
+      // Update summary stats without changing display state
+      document.getElementById('totalKeys').textContent = data.count;
+      document.getElementById('todayRequests').innerHTML = formatNumberWithTooltip(totalTodayRequests);
+      document.getElementById('todayTokens').innerHTML = formatNumberWithTooltip(totalTodayTokens);
+      document.getElementById('todayCost').textContent = formatCost(totalTodayCost);
+      
+      // Update accounts information
+      displayAccounts(data.accounts);
+      
+      // Update table rows
+      const tbody = document.getElementById('keysTableBody');
+      tbody.innerHTML = '';
+      
+      // Sort keys by last used time (newest first)
+      const sortedKeys = [...data.data].sort((a, b) => {
+        const timeA = a.last_used_at ? new Date(a.last_used_at) : new Date(0);
+        const timeB = b.last_used_at ? new Date(b.last_used_at) : new Date(0);
+        return timeB - timeA; // Descending order (newest first)
+      });
+      
+      sortedKeys.forEach((key, index) => {
+        const row = document.createElement('tr');
+        
+        // Get status for this key
+        const status = getApiKeyStatus(key, data.accounts);
+        
+        // Check window info for model usage
+        let windowStart = null;
+        let windowEnd = null;
+        const now = new Date();
+        
+        if (data.accounts && data.accounts.length > 0) {
+          for (const account of data.accounts) {
+            if (account.window_start && account.window_end) {
+              const ws = new Date(account.window_start);
+              const we = new Date(account.window_end);
+              if (now >= ws && now < we) {
+                windowStart = ws;
+                windowEnd = we;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Create model stats map for daily stats
+        const modelStatsMap = {};
+        key.model_stats_daily.forEach(m => {
+          modelStatsMap[m.model] = {
+            daily: m,
+            monthly: null
+          };
+        });
+        
+        // Add monthly stats to the map
+        key.model_stats_monthly.forEach(m => {
+          if (modelStatsMap[m.model]) {
+            modelStatsMap[m.model].monthly = m;
+          } else {
+            modelStatsMap[m.model] = {
+              daily: null,
+              monthly: m
+            };
+          }
+        });
+        
+        // Sort models by usage (cost) and activity
+        const sortedModels = Object.keys(modelStatsMap).sort((a, b) => {
+          const statsA = modelStatsMap[a];
+          const statsB = modelStatsMap[b];
+          
+          // Get monthly costs
+          const costA = statsA.monthly ? statsA.monthly.cost : 0;
+          const costB = statsB.monthly ? statsB.monthly.cost : 0;
+          
+          // Check if models are active in current window
+          let aIsActive = false;
+          let bIsActive = false;
+          
+          if (windowStart && windowEnd && statsData && statsData.model_detailed_stats) {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Check model A activity
+            if (statsData.model_detailed_stats[a] && statsData.model_detailed_stats[a][today]) {
+              for (const entry of statsData.model_detailed_stats[a][today]) {
+                if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                  const entryHour = parseInt(entry.time.split(':')[0]);
+                  const entryTime = new Date(today + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                  if (entryTime >= windowStart && entryTime < windowEnd) {
+                    aIsActive = true;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Check model B activity
+            if (statsData.model_detailed_stats[b] && statsData.model_detailed_stats[b][today]) {
+              for (const entry of statsData.model_detailed_stats[b][today]) {
+                if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                  const entryHour = parseInt(entry.time.split(':')[0]);
+                  const entryTime = new Date(today + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                  if (entryTime >= windowStart && entryTime < windowEnd) {
+                    bIsActive = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          // Sort logic:
+          // 1. Active models come first
+          // 2. Within each group (active/inactive), sort by cost (higher cost first)
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Both have same activity status, sort by cost
+          return costB - costA;
+        });
+        
+        // Generate model tags with tooltips
+        const modelsHtml = sortedModels.map(model => {
+          const shortModel = formatModelName(model);
+          const stats = modelStatsMap[model];
+          
+          // Get daily stats or defaults
+          const dailyStats = stats.daily || {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          
+          // Get monthly stats or defaults
+          const monthlyStats = stats.monthly || {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          
+          // Calculate window stats for this model and key
+          let windowStats = {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          let hasWindowStats = false;
+          
+          if (windowStart && windowEnd && statsData && statsData.model_detailed_stats && statsData.model_detailed_stats[model]) {
+            // Check if window spans multiple days
+            const modelData = statsData.model_detailed_stats[model];
+            
+            // Get all available dates for this model and check each one
+            Object.keys(modelData).forEach(dateStr => {
+              const dayData = modelData[dateStr];
+              if (dayData && Array.isArray(dayData)) {
+                dayData.forEach(entry => {
+                  if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                    const entryHour = parseInt(entry.time.split(':')[0]);
+                    const entryTime = new Date(dateStr + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                    
+                    // Check if this entry time falls within the window period
+                    if (entryTime >= windowStart && entryTime < windowEnd) {
+                      hasWindowStats = true;
+                      windowStats.cost += entry.apis[key.name];
+                      
+                      // Since we don't have hourly token breakdown, we estimate based on monthly stats proportion
+                      // Use monthly stats if daily stats are not available or are zero
+                      const statsToUse = (dailyStats.cost > 0) ? dailyStats : (stats.monthly || dailyStats);
+                      if (statsToUse.cost > 0) {
+                        const costRatio = entry.apis[key.name] / statsToUse.cost;
+                        windowStats.inputTokens += Math.round(statsToUse.inputTokens * costRatio);
+                        windowStats.outputTokens += Math.round(statsToUse.outputTokens * costRatio);
+                        windowStats.cacheReadTokens += Math.round(statsToUse.cacheReadTokens * costRatio);
+                        windowStats.cacheCreateTokens += Math.round(statsToUse.cacheCreateTokens * costRatio);
+                      }
+                    }
+                  }
+                });
+              }
+            });
+          }
+          
+          // Calculate total tokens for window stats
+          if (hasWindowStats) {
+            windowStats.allTokens = windowStats.inputTokens + windowStats.outputTokens + 
+                                   windowStats.cacheReadTokens + windowStats.cacheCreateTokens;
+          }
+          
+          // Create tooltip content
+          let tooltipContent = `
+            <div class="model-tooltip">
+              <div style="font-weight: 600; margin-bottom: 0.5rem; text-align: center;">${model}</div>`
+          
+          // Add window stats if available and there's a current window with actual consumption
+          if (hasWindowStats && windowStats.cost > 0) {
+            // Format window time range
+            const startHour = windowStart.getHours();
+            const startMin = windowStart.getMinutes();
+            const endHour = windowEnd.getHours();
+            const endMin = windowEnd.getMinutes();
+            const timeRange = `${startHour}:${String(startMin).padStart(2, '0')} - ${endHour}:${String(endMin).padStart(2, '0')}`;
+            
+            tooltipContent += `
+              <div style="color: rgba(17, 205, 239, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">窗口统计（${timeRange}）</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(windowStats.inputTokens)} tokens / ${formatNumber(windowStats.outputTokens)} tokens</span>
+              </div>`
+              
+            // Add cache stats if they exist for window
+            if (windowStats.cacheReadTokens > 0 || windowStats.cacheCreateTokens > 0) {
+              tooltipContent += `
+                <div class="model-tooltip-row">
+                  <span class="model-tooltip-label">缓存创建 / 读取</span>
+                  <span class="model-tooltip-value">${formatNumber(windowStats.cacheCreateTokens)} tokens / ${formatNumber(windowStats.cacheReadTokens)} tokens</span>
+                </div>`
+            }
+              
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(windowStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(windowStats.cost)}</span>
+              </div>
+              
+              <div class="model-tooltip-divider"></div>`;
+          }
+          
+          tooltipContent += `
+              <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">今日统计</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.inputTokens)} tokens / ${formatNumber(dailyStats.outputTokens)} tokens</span>
+              </div>`;
+          
+          // Add cache stats if they exist
+          if (dailyStats.cacheReadTokens > 0 || dailyStats.cacheCreateTokens > 0) {
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">缓存创建 / 读取</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.cacheCreateTokens)} tokens / ${formatNumber(dailyStats.cacheReadTokens)} tokens</span>
+              </div>`;
+          }
+          
+          tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(dailyStats.cost)}</span>
+              </div>
+              
+              <div class="model-tooltip-divider"></div>
+              
+              <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">本月统计</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.inputTokens)} tokens / ${formatNumber(monthlyStats.outputTokens)} tokens</span>
+              </div>`;
+          
+          // Add monthly cache stats if they exist
+          if (monthlyStats.cacheReadTokens > 0 || monthlyStats.cacheCreateTokens > 0) {
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">缓存创建 / 读取</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.cacheCreateTokens)} tokens / ${formatNumber(monthlyStats.cacheReadTokens)} tokens</span>
+              </div>`;
+          }
+          
+          tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(monthlyStats.cost)}</span>
+              </div>
+            </div>`;
+          
+          // Determine model color based on last usage time
+          let modelClass = '';
+          let lastModelUseTime = null;
+          
+          // Find the last usage time for this model
+          if (statsData && statsData.model_detailed_stats && statsData.model_detailed_stats[model]) {
+            const modelData = statsData.model_detailed_stats[model];
+            const sortedDates = Object.keys(modelData).sort((a, b) => b.localeCompare(a));
+            
+            // Get the most recent date first
+            if (sortedDates.length > 0) {
+              const mostRecentDate = sortedDates[0];
+              const dayData = modelData[mostRecentDate];
+              
+              if (dayData && Array.isArray(dayData)) {
+                // Find the latest time for this key on the most recent date
+                // The times are in ascending order within each date
+                for (let i = dayData.length - 1; i >= 0; i--) {
+                  const entry = dayData[i];
+                  if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                    // Found last usage
+                    const hour = parseInt(entry.time.split(':')[0]);
+                    lastModelUseTime = new Date(mostRecentDate + 'T' + String(hour).padStart(2, '0') + ':00:00');
+                    break;
+                  }
+                }
+                
+                // If not found in most recent date, check earlier dates
+                if (!lastModelUseTime) {
+                  for (let dateIdx = 1; dateIdx < sortedDates.length; dateIdx++) {
+                    const date = sortedDates[dateIdx];
+                    const dateData = modelData[date];
+                    if (dateData && Array.isArray(dateData)) {
+                      for (let i = dateData.length - 1; i >= 0; i--) {
+                        const entry = dateData[i];
+                        if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                          const hour = parseInt(entry.time.split(':')[0]);
+                          lastModelUseTime = new Date(date + 'T' + String(hour).padStart(2, '0') + ':00:00');
+                          break;
+                        }
+                      }
+                      if (lastModelUseTime) break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          const now = new Date();
+          
+          if (lastModelUseTime) {
+            const hoursDiff = (now - lastModelUseTime) / (1000 * 60 * 60);
+            
+            // Check if used in the previous hour (e.g., if now is 10:50, check if 9:00 has data)
+            const oneHourAgo = new Date(now);
+            oneHourAgo.setHours(now.getHours() - 1, 0, 0, 0); // Set to previous hour, 00 minutes
+            
+            // Check usage time and set appropriate color
+            if (lastModelUseTime >= oneHourAgo) {
+              // Used within the current or previous hour - default purple color
+              modelClass = '';
+            } else if (windowStart && windowEnd && lastModelUseTime >= windowStart && lastModelUseTime < windowEnd) {
+              // Used more than 1 hour ago but within window period - light purple
+              modelClass = 'inactive-window';
+            } else if (hoursDiff < 24) {
+              // Used outside window but within 24 hours - dark gray
+              modelClass = 'inactive-day';
+            } else {
+              // Used more than 24 hours ago - gray
+              modelClass = 'badge-gray';
+            }
+          } else {
+            // Never used by this key - should not appear, but if it does, make it gray
+            modelClass = 'badge-gray';
+          }
+          
+          // Calculate total cost for this model
+          const totalModelCost = stats.monthly ? stats.monthly.cost : 0;
+          const costDisplay = totalModelCost > 0 ? ` ($${totalModelCost.toFixed(2)})` : '';
+          
+          return `<span class="model-tag ${modelClass}" onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');" style="cursor: pointer;">${shortModel}${costDisplay}${tooltipContent}</span>`;
+        }).join('');
+        
+        row.innerHTML = `
+          <td><strong>${key.name}</strong></td>
+          <td><span class="badge ${status.badge}">${status.text}</span></td>
+          <td>${createWindowCostCell(key, data.accounts, data.data)}</td>
+          <td>${formatNumberWithTooltip(key.today_requests)}</td>
+          <td>${formatNumberWithTooltip(key.today_tokens)}</td>
+          <td onclick="showHourlyDetailedStats('${key.name}')" style="cursor: pointer;">${createCostCell(key, index === 0)}</td>
+          <td class="cost-value">${formatCost(key.month_cost)}</td>
+          <td>${createLimitsInfo(key)}</td>
+          <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
+          <td>${formatDate(key.last_used_at)}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    function displayStats(data) {
+      hideAllStates();
+      
+      // First calculate actual today costs from model_stats_daily
+      data.data.forEach(key => {
+        let actualTodayCost = 0;
+        if (key.model_stats_daily && Array.isArray(key.model_stats_daily)) {
+          key.model_stats_daily.forEach(model => {
+            actualTodayCost += model.cost || 0;
+          });
+        }
+        key.actual_today_cost = actualTodayCost;
+      });
+      
+      // Calculate cost limits for all keys
+      data.data = calculateCostLimits(data.data);
+      
+      // Calculate totals using actual costs
+      let totalTodayRequests = 0;
+      let totalTodayTokens = 0;
+      let totalTodayCost = 0;
+      
+      data.data.forEach(key => {
+        totalTodayRequests += key.today_requests;
+        totalTodayTokens += key.today_tokens;
+        totalTodayCost += key.actual_today_cost;
+      });
+
+      // Update summary stats
+      document.getElementById('totalKeys').textContent = data.count;
+      document.getElementById('todayRequests').innerHTML = formatNumberWithTooltip(totalTodayRequests);
+      document.getElementById('todayTokens').innerHTML = formatNumberWithTooltip(totalTodayTokens);
+      document.getElementById('todayCost').textContent = formatCost(totalTodayCost);
+      
+      // Display accounts information
+      displayAccounts(data.accounts);
+      
+      // Build table rows
+      const tbody = document.getElementById('keysTableBody');
+      tbody.innerHTML = '';
+      
+      // Sort keys by last used time (newest first)
+      const sortedKeys = [...data.data].sort((a, b) => {
+        const timeA = a.last_used_at ? new Date(a.last_used_at) : new Date(0);
+        const timeB = b.last_used_at ? new Date(b.last_used_at) : new Date(0);
+        return timeB - timeA; // Descending order (newest first)
+      });
+      
+      sortedKeys.forEach((key, index) => {
+        const row = document.createElement('tr');
+        
+        // Get status for this key
+        const status = getApiKeyStatus(key, data.accounts);
+        
+        // Check window info for model usage
+        let windowStart = null;
+        let windowEnd = null;
+        const now = new Date();
+        
+        if (data.accounts && data.accounts.length > 0) {
+          for (const account of data.accounts) {
+            if (account.window_start && account.window_end) {
+              const ws = new Date(account.window_start);
+              const we = new Date(account.window_end);
+              if (now >= ws && now < we) {
+                windowStart = ws;
+                windowEnd = we;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Create model stats map for daily stats
+        const modelStatsMap = {};
+        key.model_stats_daily.forEach(m => {
+          modelStatsMap[m.model] = {
+            daily: m,
+            monthly: null
+          };
+        });
+        
+        // Add monthly stats to the map
+        key.model_stats_monthly.forEach(m => {
+          if (modelStatsMap[m.model]) {
+            modelStatsMap[m.model].monthly = m;
+          } else {
+            modelStatsMap[m.model] = {
+              daily: null,
+              monthly: m
+            };
+          }
+        });
+        
+        // Sort models by usage (cost) and activity
+        const sortedModels = Object.keys(modelStatsMap).sort((a, b) => {
+          const statsA = modelStatsMap[a];
+          const statsB = modelStatsMap[b];
+          
+          // Get monthly costs
+          const costA = statsA.monthly ? statsA.monthly.cost : 0;
+          const costB = statsB.monthly ? statsB.monthly.cost : 0;
+          
+          // Check if models are active in current window
+          let aIsActive = false;
+          let bIsActive = false;
+          
+          if (windowStart && windowEnd && statsData && statsData.model_detailed_stats) {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Check model A activity
+            if (statsData.model_detailed_stats[a] && statsData.model_detailed_stats[a][today]) {
+              for (const entry of statsData.model_detailed_stats[a][today]) {
+                if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                  const entryHour = parseInt(entry.time.split(':')[0]);
+                  const entryTime = new Date(today + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                  if (entryTime >= windowStart && entryTime < windowEnd) {
+                    aIsActive = true;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Check model B activity
+            if (statsData.model_detailed_stats[b] && statsData.model_detailed_stats[b][today]) {
+              for (const entry of statsData.model_detailed_stats[b][today]) {
+                if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                  const entryHour = parseInt(entry.time.split(':')[0]);
+                  const entryTime = new Date(today + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                  if (entryTime >= windowStart && entryTime < windowEnd) {
+                    bIsActive = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          // Sort logic:
+          // 1. Active models come first
+          // 2. Within each group (active/inactive), sort by cost (higher cost first)
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Both have same activity status, sort by cost
+          return costB - costA;
+        });
+        
+        // Generate model tags with tooltips
+        const modelsHtml = sortedModels.map(model => {
+          const shortModel = formatModelName(model);
+          const stats = modelStatsMap[model];
+          
+          // Get daily stats or defaults
+          const dailyStats = stats.daily || {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          
+          // Get monthly stats or defaults
+          const monthlyStats = stats.monthly || {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          
+          // Calculate window stats for this model and key
+          let windowStats = {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheCreateTokens: 0,
+            allTokens: 0,
+            cost: 0
+          };
+          let hasWindowStats = false;
+          
+          if (windowStart && windowEnd && statsData && statsData.model_detailed_stats && statsData.model_detailed_stats[model]) {
+            // Check if window spans multiple days
+            const modelData = statsData.model_detailed_stats[model];
+            
+            // Get all available dates for this model and check each one
+            Object.keys(modelData).forEach(dateStr => {
+              const dayData = modelData[dateStr];
+              if (dayData && Array.isArray(dayData)) {
+                dayData.forEach(entry => {
+                  if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                    const entryHour = parseInt(entry.time.split(':')[0]);
+                    const entryTime = new Date(dateStr + 'T' + String(entryHour).padStart(2, '0') + ':00:00');
+                    
+                    // Check if this entry time falls within the window period
+                    if (entryTime >= windowStart && entryTime < windowEnd) {
+                      hasWindowStats = true;
+                      windowStats.cost += entry.apis[key.name];
+                      
+                      // Since we don't have hourly token breakdown, we estimate based on monthly stats proportion
+                      // Use monthly stats if daily stats are not available or are zero
+                      const statsToUse = (dailyStats.cost > 0) ? dailyStats : (stats.monthly || dailyStats);
+                      if (statsToUse.cost > 0) {
+                        const costRatio = entry.apis[key.name] / statsToUse.cost;
+                        windowStats.inputTokens += Math.round(statsToUse.inputTokens * costRatio);
+                        windowStats.outputTokens += Math.round(statsToUse.outputTokens * costRatio);
+                        windowStats.cacheReadTokens += Math.round(statsToUse.cacheReadTokens * costRatio);
+                        windowStats.cacheCreateTokens += Math.round(statsToUse.cacheCreateTokens * costRatio);
+                      }
+                    }
+                  }
+                });
+              }
+            });
+          }
+          
+          // Calculate total tokens for window stats
+          if (hasWindowStats) {
+            windowStats.allTokens = windowStats.inputTokens + windowStats.outputTokens + 
+                                   windowStats.cacheReadTokens + windowStats.cacheCreateTokens;
+          }
+          
+          // Create tooltip content
+          let tooltipContent = `
+            <div class="model-tooltip">
+              <div style="font-weight: 600; margin-bottom: 0.5rem; text-align: center;">${model}</div>`
+          
+          // Add window stats if available and there's a current window with actual consumption
+          if (hasWindowStats && windowStats.cost > 0) {
+            // Format window time range
+            const startHour = windowStart.getHours();
+            const startMin = windowStart.getMinutes();
+            const endHour = windowEnd.getHours();
+            const endMin = windowEnd.getMinutes();
+            const timeRange = `${startHour}:${String(startMin).padStart(2, '0')} - ${endHour}:${String(endMin).padStart(2, '0')}`;
+            
+            tooltipContent += `
+              <div style="color: rgba(17, 205, 239, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">窗口统计（${timeRange}）</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(windowStats.inputTokens)} tokens / ${formatNumber(windowStats.outputTokens)} tokens</span>
+              </div>`
+              
+            // Add cache stats if they exist for window
+            if (windowStats.cacheReadTokens > 0 || windowStats.cacheCreateTokens > 0) {
+              tooltipContent += `
+                <div class="model-tooltip-row">
+                  <span class="model-tooltip-label">缓存创建 / 读取</span>
+                  <span class="model-tooltip-value">${formatNumber(windowStats.cacheCreateTokens)} tokens / ${formatNumber(windowStats.cacheReadTokens)} tokens</span>
+                </div>`
+            }
+              
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(windowStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(windowStats.cost)}</span>
+              </div>
+              
+              <div class="model-tooltip-divider"></div>`;
+          }
+          
+          tooltipContent += `
+              <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">今日统计</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.inputTokens)} tokens / ${formatNumber(dailyStats.outputTokens)} tokens</span>
+              </div>`;
+          
+          // Add cache stats if they exist
+          if (dailyStats.cacheReadTokens > 0 || dailyStats.cacheCreateTokens > 0) {
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">缓存创建 / 读取</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.cacheCreateTokens)} tokens / ${formatNumber(dailyStats.cacheReadTokens)} tokens</span>
+              </div>`;
+          }
+          
+          tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(dailyStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(dailyStats.cost)}</span>
+              </div>
+              
+              <div class="model-tooltip-divider"></div>
+              
+              <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.7rem; margin-bottom: 0.25rem;">本月统计</div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">输入 / 输出</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.inputTokens)} tokens / ${formatNumber(monthlyStats.outputTokens)} tokens</span>
+              </div>`;
+          
+          // Add monthly cache stats if they exist
+          if (monthlyStats.cacheReadTokens > 0 || monthlyStats.cacheCreateTokens > 0) {
+            tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">缓存创建 / 读取</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.cacheCreateTokens)} tokens / ${formatNumber(monthlyStats.cacheReadTokens)} tokens</span>
+              </div>`;
+          }
+          
+          tooltipContent += `
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">总tokens</span>
+                <span class="model-tooltip-value">${formatNumber(monthlyStats.allTokens)} tokens</span>
+              </div>
+              <div class="model-tooltip-row">
+                <span class="model-tooltip-label">消耗</span>
+                <span class="model-tooltip-value">${formatCost(monthlyStats.cost)}</span>
+              </div>
+            </div>`;
+          
+          // Determine model color based on last usage time
+          let modelClass = '';
+          let lastModelUseTime = null;
+          
+          // Find the last usage time for this model
+          if (statsData && statsData.model_detailed_stats && statsData.model_detailed_stats[model]) {
+            const modelData = statsData.model_detailed_stats[model];
+            const sortedDates = Object.keys(modelData).sort((a, b) => b.localeCompare(a));
+            
+            // Get the most recent date first
+            if (sortedDates.length > 0) {
+              const mostRecentDate = sortedDates[0];
+              const dayData = modelData[mostRecentDate];
+              
+              if (dayData && Array.isArray(dayData)) {
+                // Find the latest time for this key on the most recent date
+                // The times are in ascending order within each date
+                for (let i = dayData.length - 1; i >= 0; i--) {
+                  const entry = dayData[i];
+                  if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                    // Found last usage
+                    const hour = parseInt(entry.time.split(':')[0]);
+                    lastModelUseTime = new Date(mostRecentDate + 'T' + String(hour).padStart(2, '0') + ':00:00');
+                    break;
+                  }
+                }
+                
+                // If not found in most recent date, check earlier dates
+                if (!lastModelUseTime) {
+                  for (let dateIdx = 1; dateIdx < sortedDates.length; dateIdx++) {
+                    const date = sortedDates[dateIdx];
+                    const dateData = modelData[date];
+                    if (dateData && Array.isArray(dateData)) {
+                      for (let i = dateData.length - 1; i >= 0; i--) {
+                        const entry = dateData[i];
+                        if (entry.apis && entry.apis[key.name] && entry.apis[key.name] > 0) {
+                          const hour = parseInt(entry.time.split(':')[0]);
+                          lastModelUseTime = new Date(date + 'T' + String(hour).padStart(2, '0') + ':00:00');
+                          break;
+                        }
+                      }
+                      if (lastModelUseTime) break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          const now = new Date();
+          
+          if (lastModelUseTime) {
+            const hoursDiff = (now - lastModelUseTime) / (1000 * 60 * 60);
+            
+            // Check if used in the previous hour (e.g., if now is 10:50, check if 9:00 has data)
+            const oneHourAgo = new Date(now);
+            oneHourAgo.setHours(now.getHours() - 1, 0, 0, 0); // Set to previous hour, 00 minutes
+            
+            // Check usage time and set appropriate color
+            if (lastModelUseTime >= oneHourAgo) {
+              // Used within the current or previous hour - default purple color
+              modelClass = '';
+            } else if (windowStart && windowEnd && lastModelUseTime >= windowStart && lastModelUseTime < windowEnd) {
+              // Used more than 1 hour ago but within window period - light purple
+              modelClass = 'inactive-window';
+            } else if (hoursDiff < 24) {
+              // Used outside window but within 24 hours - dark gray
+              modelClass = 'inactive-day';
+            } else {
+              // Used more than 24 hours ago - gray
+              modelClass = 'badge-gray';
+            }
+          } else {
+            // Never used by this key - should not appear, but if it does, make it gray
+            modelClass = 'badge-gray';
+          }
+          
+          // Calculate total cost for this model
+          const totalModelCost = stats.monthly ? stats.monthly.cost : 0;
+          const costDisplay = totalModelCost > 0 ? ` ($${totalModelCost.toFixed(2)})` : '';
+          
+          return `<span class="model-tag ${modelClass}" onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');" style="cursor: pointer;">${shortModel}${costDisplay}${tooltipContent}</span>`;
+        }).join('');
+        
+        row.innerHTML = `
+          <td><strong>${key.name}</strong></td>
+          <td><span class="badge ${status.badge}">${status.text}</span></td>
+          <td>${createWindowCostCell(key, data.accounts, data.data)}</td>
+          <td>${formatNumberWithTooltip(key.today_requests)}</td>
+          <td>${formatNumberWithTooltip(key.today_tokens)}</td>
+          <td onclick="showHourlyDetailedStats('${key.name}')" style="cursor: pointer;">${createCostCell(key, index === 0)}</td>
+          <td class="cost-value">${formatCost(key.month_cost)}</td>
+          <td>${createLimitsInfo(key)}</td>
+          <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
+          <td>${formatDate(key.last_used_at)}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+      
+      // Show the stats
+      document.getElementById('summaryStats').style.display = 'grid';
+      document.getElementById('keysTable').style.display = 'block';
+    }
+
+    // Auto-load stats when page loads
+    window.addEventListener('load', () => {
+      // Check if we have an auth token
+      if (authToken) {
+        loadStats(true);  // Try to load with existing token
+      } else {
+        showAuthInput();  // Show auth input immediately
+      }
+    });
+    
+    // Auto-refresh disabled
+    // setInterval(() => {
+    //   loadStats(false);  // Pass false for refresh
+    // }, 30000);
+
+    // Modal functions
+    async function showHourlyDetailedStats(userName = null) {
+      if (!statsData || !statsData.detailed_stats) {
+        return;
+      }
+      
+      const modal = document.getElementById('statsModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalBody = document.getElementById('modalBody');
+      
+      if (userName) {
+        modalTitle.innerHTML = `<i class="fas fa-clock"></i> ${userName} - 消耗详情`;
+      } else {
+        modalTitle.innerHTML = '<i class="fas fa-clock"></i> 消耗详情';
+      }
+      modalBody.innerHTML = '<div class="modal-loading"><i class="fas fa-spinner"></i><p>正在加载统计数据...</p></div>';
+      modal.style.display = 'flex';
+      
+      // Use existing detailed_stats from statsData, filtered by userName if provided
+      displayHourlyStats(statsData.detailed_stats, userName);
+    }
+
+    function displayHourlyStats(detailedStats, filterUserName = null) {
+      const modalBody = document.getElementById('modalBody');
+      
+      if (!detailedStats || Object.keys(detailedStats).length === 0) {
+        modalBody.innerHTML = '<div class="no-data-message"><i class="fas fa-info-circle"></i><p>暂无详细统计数据</p></div>';
+        return;
+      }
+      
+      let html = '';
+      
+      // Filter by userName if specified
+      let filteredStats = detailedStats;
+      if (filterUserName) {
+        filteredStats = {};
+        if (detailedStats[filterUserName]) {
+          filteredStats[filterUserName] = detailedStats[filterUserName];
+        } else {
+          modalBody.innerHTML = `<div class="no-data-message"><i class="fas fa-info-circle"></i><p>${filterUserName} 在统计期间内暂无消耗记录</p></div>`;
+          return;
+        }
+      }
+      
+      // First, collect all dates from filtered APIs
+      const allDates = new Set();
+      for (const apiName in filteredStats) {
+        const apiData = filteredStats[apiName];
+        if (apiData && typeof apiData === 'object') {
+          Object.keys(apiData).forEach(date => {
+            if (apiData[date] && Array.isArray(apiData[date]) && apiData[date].length > 0) {
+              allDates.add(date);
+            }
+          });
+        }
+      }
+      
+      // Sort dates in descending order (newest first)
+      const sortedDates = Array.from(allDates).sort((a, b) => b.localeCompare(a));
+      
+      sortedDates.forEach(date => {
+        let dateHtml = `
+          <div class="stats-day">
+            <div class="stats-day-header">${date}</div>
+            <div class="stats-day-content">
+        `;
+        
+        // Collect all unique times across filtered APIs for this date
+        const allTimes = new Set();
+        for (const apiName in filteredStats) {
+          const apiData = filteredStats[apiName];
+          if (apiData && apiData[date] && Array.isArray(apiData[date])) {
+            apiData[date].forEach(entry => {
+              allTimes.add(entry.time);
+            });
+          }
+        }
+        
+        // Convert to sorted array (00:00, 01:00, etc.)
+        const sortedTimes = Array.from(allTimes).sort();
+        let dayTotal = 0;
+        
+        sortedTimes.forEach(time => {
+          let timeSlotCost = 0;
+          let timeSlotDetails = [];
+          
+          // Collect data from filtered APIs for this time slot
+          let timeSlotModels = {};
+          for (const apiName in filteredStats) {
+            const apiData = filteredStats[apiName];
+            if (apiData && apiData[date] && Array.isArray(apiData[date])) {
+              const timeEntry = apiData[date].find(entry => entry.time === time);
+              if (timeEntry && timeEntry.cost > 0) {
+                timeSlotCost += timeEntry.cost;
+                // Aggregate model costs from this time entry
+                if (timeEntry.models) {
+                  for (const [model, cost] of Object.entries(timeEntry.models)) {
+                    if (cost > 0) {
+                      if (!timeSlotModels[model]) {
+                        timeSlotModels[model] = 0;
+                      }
+                      timeSlotModels[model] += cost;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Format model breakdown for display
+          if (Object.keys(timeSlotModels).length > 0) {
+            timeSlotDetails = Object.entries(timeSlotModels).map(([model, cost]) => {
+              // Use original model name instead of formatted name for detailed stats
+              // Pad model name to ensure consistent width (30 characters for full model names)
+              const paddedModel = model.padEnd(30, ' ');
+              return `${paddedModel} $${cost.toFixed(6)}`;
+            });
+          }
+          
+          if (timeSlotCost > 0) {
+            dayTotal += timeSlotCost;
+            const hour = parseInt(time.split(':')[0]);
+            const startTime = `${String(hour).padStart(2, '0')}:00`;
+            const endTime = `${String(hour).padStart(2, '0')}:59`;
+            dateHtml += `
+              <div class="stats-entry">
+                <div>
+                  <div class="stats-time">${startTime} - ${endTime}</div>
+                  <div class="stats-models">${timeSlotDetails.join('<br />')}</div>
+                </div>
+                <div class="stats-cost">$${timeSlotCost.toFixed(4)}</div>
+              </div>
+            `;
+          }
+        });
+        
+        // Add daily total
+        if (dayTotal > 0) {
+          dateHtml += `
+              <div class="stats-entry" style="margin-top: 0.5rem; padding-top: 0.75rem;">
+                <div></div>
+                <div class="stats-cost" style="font-weight: 700; font-size: 1.1rem;">总计：$${dayTotal.toFixed(4)}</div>
+              </div>
+          `;
+        }
+        
+        dateHtml += `
+            </div>
+          </div>
+        `;
+        
+        html += dateHtml;
+      });
+      
+      modalBody.innerHTML = html || '<div class="no-data-message"><i class="fas fa-info-circle"></i><p>暂无详细统计数据</p></div>';
+    }
+
+    function showModelStats(modelName, userName = null) {
+      if (!statsData || !statsData.model_detailed_stats) {
+        return;
+      }
+      
+      const modal = document.getElementById('statsModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalBody = document.getElementById('modalBody');
+      
+      if (userName) {
+        modalTitle.innerHTML = `<i class="fas fa-microchip"></i> ${userName} - ${modelName} 模型统计`;
+      } else {
+        modalTitle.innerHTML = '<i class="fas fa-microchip"></i> ' + modelName + ' 模型统计';
+      }
+      modalBody.innerHTML = '<div class="modal-loading"><i class="fas fa-spinner"></i><p>正在加载模型统计...</p></div>';
+      modal.style.display = 'flex';
+      
+      // Use existing model_detailed_stats from statsData, filtered by userName if provided
+      displayModelStatsFromData(statsData.model_detailed_stats, modelName, userName);
+    }
+
+    function displayModelStatsFromData(modelDetailedStats, targetModel, filterUserName = null) {
+      const modalBody = document.getElementById('modalBody');
+      
+      if (!modelDetailedStats || !modelDetailedStats[targetModel]) {
+        const userText = filterUserName ? `${filterUserName} 使用` : '';
+        modalBody.innerHTML = `<div class="no-data-message"><i class="fas fa-info-circle"></i><p>${userText}该模型在统计期间内无使用记录</p></div>`;
+        return;
+      }
+      
+      const modelData = modelDetailedStats[targetModel];
+      let html = '';
+      let totalCost = 0;
+      let totalRequests = 0;
+      
+      // Calculate total requests from monthly stats if available
+      if (filterUserName && statsData && statsData.data) {
+        const keyData = statsData.data.find(k => k.name === filterUserName);
+        if (keyData && keyData.model_stats_monthly) {
+          const modelStats = keyData.model_stats_monthly.find(m => m.model === targetModel);
+          if (modelStats && modelStats.requests) {
+            totalRequests = modelStats.requests;
+          }
+        }
+      } else if (statsData && statsData.data) {
+        // Sum requests from all keys for this model
+        statsData.data.forEach(keyData => {
+          if (keyData.model_stats_monthly) {
+            const modelStats = keyData.model_stats_monthly.find(m => m.model === targetModel);
+            if (modelStats && modelStats.requests) {
+              totalRequests += modelStats.requests;
+            }
+          }
+        });
+      }
+      
+      // Sort dates in descending order (newest first)
+      const sortedDates = Object.keys(modelData).sort((a, b) => b.localeCompare(a));
+      
+      sortedDates.forEach(date => {
+        const dayData = modelData[date];
+        if (dayData && dayData.length > 0) {
+          let dateHtml = `
+            <div class="stats-day">
+              <div class="stats-day-header">${date}</div>
+              <div class="stats-day-content">
+          `;
+          
+          let dayTotal = 0;
+          let dayHasEntries = false;
+          
+          dayData.forEach(entry => {
+            let modelCost, apiDetails;
+            
+            // Filter by user if specified
+            if (filterUserName) {
+              if (!entry.apis[filterUserName] || entry.apis[filterUserName] <= 0) {
+                return; // Skip this entry if the specified user didn't use this model at this time
+              }
+              
+              modelCost = entry.apis[filterUserName];
+              
+              // Get token stats for this user and model from statsData
+              let tokenDetails = '';
+              if (statsData && statsData.data) {
+                const keyData = statsData.data.find(k => k.name === filterUserName);
+                if (keyData) {
+                  // Get monthly stats for this model
+                  const monthlyModelStats = keyData.model_stats_monthly.find(m => m.model === targetModel);
+                  if (monthlyModelStats) {
+                    const totalTokens = monthlyModelStats.allTokens;
+                    const inputTokens = monthlyModelStats.inputTokens;
+                    const outputTokens = monthlyModelStats.outputTokens;
+                    const cacheCreateTokens = monthlyModelStats.cacheCreateTokens;
+                    const cacheReadTokens = monthlyModelStats.cacheReadTokens;
+                    
+                    // Calculate hourly proportion based on cost
+                    const totalMonthlyCost = monthlyModelStats.cost;
+                    const hourlyProportion = totalMonthlyCost > 0 ? modelCost / totalMonthlyCost : 0;
+                    
+                    // Estimate token usage for this hour based on cost proportion
+                    const hourlyInputTokens = Math.round(inputTokens * hourlyProportion);
+                    const hourlyOutputTokens = Math.round(outputTokens * hourlyProportion);
+                    const hourlyCacheCreateTokens = Math.round(cacheCreateTokens * hourlyProportion);
+                    const hourlyCacheReadTokens = Math.round(cacheReadTokens * hourlyProportion);
+                    const hourlyTotalTokens = Math.round(totalTokens * hourlyProportion);
+                    
+                    // Calculate approximate cost distribution (simplified ratios)
+                    const totalParts = inputTokens + outputTokens * 5 + cacheCreateTokens * 1.25 + cacheReadTokens * 0.1;
+                    const inputCost = totalParts > 0 ? modelCost * inputTokens / totalParts : 0;
+                    const outputCost = totalParts > 0 ? modelCost * outputTokens * 5 / totalParts : 0;
+                    const cacheCreateCost = totalParts > 0 ? modelCost * cacheCreateTokens * 1.25 / totalParts : 0;
+                    const cacheReadCost = totalParts > 0 ? modelCost * cacheReadTokens * 0.1 / totalParts : 0;
+                    
+                    // Get request count for this hour (estimate based on proportion)
+                    const monthlyRequests = monthlyModelStats.requests || 0;
+                    const hourlyRequests = Math.round(monthlyRequests * hourlyProportion);
+                    
+                    tokenDetails = `输入 ${formatNumber(hourlyInputTokens)} tokens($${inputCost.toFixed(5)})  输出 ${formatNumber(hourlyOutputTokens)} tokens($${outputCost.toFixed(5)})\n`;
+                    
+                    if (hourlyCacheCreateTokens > 0 || hourlyCacheReadTokens > 0) {
+                      tokenDetails += `缓存创建 ${formatNumber(hourlyCacheCreateTokens)} tokens($${cacheCreateCost.toFixed(5)}) 缓存读取 ${formatNumber(hourlyCacheReadTokens)} tokens($${cacheReadCost.toFixed(5)})\n`;
+                    }
+                    
+                    tokenDetails += `请求次数 ${hourlyRequests} 总tokens ${formatNumber(hourlyTotalTokens)} tokens`;
+                  }
+                }
+              }
+              
+              apiDetails = tokenDetails || `$${modelCost.toFixed(6)}`;
+            } else {
+              modelCost = entry.cost;
+              // Format API details for all users
+              apiDetails = Object.keys(entry.apis).map(apiName => 
+                `${apiName}: $${entry.apis[apiName].toFixed(6)}`
+              ).join(', ');
+            }
+            
+            if (modelCost > 0) {
+              dayTotal += modelCost;
+              dayHasEntries = true;
+              totalCost += modelCost;
+              
+              const hour = parseInt(entry.time.split(':')[0]);
+              const startTime = `${String(hour).padStart(2, '0')}:00`;
+              const endTime = `${String(hour).padStart(2, '0')}:59`;
+              
+              dateHtml += `
+                <div class="stats-entry">
+                  <div>
+                    <div class="stats-time">${startTime} - ${endTime}</div>
+                    <div class="stats-models">${apiDetails}</div>
+                  </div>
+                  <div class="stats-cost">$${modelCost.toFixed(4)}</div>
+                </div>
+              `;
+            }
+          });
+          
+          // Only add this date section if it has entries
+          if (dayHasEntries) {
+            // Add daily total
+            if (dayTotal > 0) {
+              dateHtml += `
+                <div class="stats-entry" style="margin-top: 0.5rem; padding-top: 0.75rem;">
+                  <div></div>
+                  <div class="stats-cost" style="font-weight: 700; font-size: 1.1rem;">总计：$${dayTotal.toFixed(4)}</div>
+                </div>
+              `;
+            }
+            
+            dateHtml += `
+                </div>
+              </div>
+            `;
+            
+            html += dateHtml;
+          }
+        }
+      });
+      
+      if (html) {
+        // Add summary at the top
+        const summaryHtml = `
+          <div class="stats-day">
+            <div class="stats-day-header">汇总信息</div>
+            <div class="stats-day-content">
+              <div class="stats-entry">
+                <div>
+                  <div class="stats-time">总请求次数</div>
+                  <div class="stats-models">该模型在统计期间内的总请求数</div>
+                </div>
+                <div class="stats-cost">${totalRequests} 次</div>
+              </div>
+              <div class="stats-entry">
+                <div>
+                  <div class="stats-time">总消耗金额</div>
+                  <div class="stats-models">该模型在统计期间内的总消耗</div>
+                </div>
+                <div class="stats-cost">$${totalCost.toFixed(6)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        modalBody.innerHTML = summaryHtml + html;
+      } else {
+        const userText = filterUserName ? `${filterUserName} 使用` : '';
+        modalBody.innerHTML = `<div class="no-data-message"><i class="fas fa-info-circle"></i><p>${userText}该模型在统计期间内无使用记录</p></div>`;
+      }
+    }
+
+    function displayModelStats(detailedStats, targetModel) {
+      const modalBody = document.getElementById('modalBody');
+      
+      if (!detailedStats || Object.keys(detailedStats).length === 0) {
+        modalBody.innerHTML = '<div class="no-data-message"><i class="fas fa-info-circle"></i><p>暂无该模型的统计数据</p></div>';
+        return;
+      }
+      
+      let html = '';
+      let totalCost = 0;
+      let totalRequests = 0;
+      
+      // Calculate total requests from all keys for this model
+      if (statsData && statsData.data) {
+        statsData.data.forEach(keyData => {
+          if (keyData.model_stats_monthly) {
+            const modelStats = keyData.model_stats_monthly.find(m => m.model === targetModel);
+            if (modelStats && modelStats.requests) {
+              totalRequests += modelStats.requests;
+            }
+          }
+        });
+      }
+      
+      // Sort dates in descending order (newest first)
+      const sortedDates = Object.keys(detailedStats).sort((a, b) => b.localeCompare(a));
+      
+      sortedDates.forEach(date => {
+        const dayData = detailedStats[date];
+        if (dayData && dayData.length > 0) {
+          // Filter entries that contain the target model
+          const modelEntries = dayData.filter(entry => entry.models[targetModel]);
+          
+          if (modelEntries.length > 0) {
+            html += `
+              <div class="stats-day">
+                <div class="stats-day-header">${date}</div>
+                <div class="stats-day-content">
+            `;
+            
+            modelEntries.forEach(entry => {
+              const modelCost = entry.models[targetModel];
+              totalCost += modelCost;
+              
+              html += `
+                <div class="stats-entry">
+                  <div>
+                    <div class="stats-time">${entry.time}</div>
+                    <div class="stats-models">占该时段总消耗比例: ${((modelCost / entry.cost) * 100).toFixed(2)}%</div>
+                  </div>
+                  <div class="stats-cost">$${modelCost.toFixed(6)}</div>
+                </div>
+              `;
+            });
+            
+            html += `
+                </div>
+              </div>
+            `;
+          }
+        }
+      });
+      
+      if (html) {
+        // Add summary at the top
+        const summaryHtml = `
+          <div class="stats-day">
+            <div class="stats-day-header">汇总信息</div>
+            <div class="stats-day-content">
+              <div class="stats-entry">
+                <div>
+                  <div class="stats-time">总请求次数</div>
+                  <div class="stats-models">该模型在统计期间内的总请求数</div>
+                </div>
+                <div class="stats-cost">${totalRequests} 次</div>
+              </div>
+              <div class="stats-entry">
+                <div>
+                  <div class="stats-time">总消耗金额</div>
+                  <div class="stats-models">该模型在统计期间内的总消耗</div>
+                </div>
+                <div class="stats-cost">$${totalCost.toFixed(6)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        modalBody.innerHTML = summaryHtml + html;
+      } else {
+        modalBody.innerHTML = '<div class="no-data-message"><i class="fas fa-info-circle"></i><p>该模型在统计期间内无使用记录</p></div>';
+      }
+    }
+
+    function closeStatsModal() {
+      const modal = document.getElementById('statsModal');
+      modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('statsModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeStatsModal();
+      }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeStatsModal();
+      }
+    });
+  </script>
+</body>
+</html>
