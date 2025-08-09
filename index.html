@@ -1060,6 +1060,129 @@
       animation: spin 1s linear infinite;
     }
 
+    /* Message section styles */
+    .messages-section {
+      position: fixed;
+      right: 10px;
+      top: 100px;
+      width: 220px;
+      max-height: 60vh;
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 999;
+      display: none;
+      flex-direction: column;
+      border: 1px solid #e9ecef;
+    }
+    
+    .messages-header {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e9ecef;
+      display: none;
+    }
+    
+    .messages-body {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 0.75rem;
+    }
+    
+    .message-item {
+      padding: 0.6rem;
+      margin-bottom: 0.5rem;
+      position: relative;
+      background: #f8f9fa;
+      border-radius: 0.4rem;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+      transition: background 0.2s;
+    }
+    
+    .message-item:hover {
+      background: #f0f1f3;
+    }
+    
+    .message-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .message-item.own-message {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .message-item.own-message:hover {
+      background: linear-gradient(135deg, #5a72e0 0%, #6e4399 100%);
+    }
+    
+    .message-author {
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-bottom: 0.2rem;
+      opacity: 0.9;
+    }
+    
+    .message-content {
+      font-size: 0.8rem;
+      line-height: 1.3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    
+    .message-close {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.3rem;
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 0.2rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 99999;
+    }
+    
+    .message-item:hover .message-close {
+      opacity: 0.7;
+    }
+    
+    .message-close:hover {
+      opacity: 1 !important;
+      color: #dc3545;
+    }
+    
+    .own-message .message-close {
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .own-message .message-close:hover {
+      color: white;
+    }
+    
+    .messages-empty {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+
+    /* Hide message functionality on smaller screens */
+    @media (max-width: 1850px) {
+      .messages-section {
+        display: none !important;
+      }
+      
+      #messageInput,
+      #messageButton {
+        display: none !important;
+      }
+    }
+
     /* Responsive table wrapper for small screens */
     @media (max-width: 1200px) {
       .table-content {
@@ -1155,6 +1278,11 @@
           <button id="authButton" class="btn btn-primary" onclick="authenticate()" style="display: none;">
             <i class="fas fa-lock"></i>
             认证
+          </button>
+          <input type="text" id="messageInput" class="auth-input" placeholder="留言" style="display: none;">
+          <button id="messageButton" class="btn btn-primary" onclick="sendMessage()" style="display: none;">
+            <i class="fas fa-comment"></i>
+            留言
           </button>
         </div>
       </div>
@@ -1274,6 +1402,13 @@
     </div>
   </main>
 
+  <!-- Messages Section -->
+  <div id="messagesSection" class="messages-section">
+    <div class="messages-body" id="messagesBody">
+      <div class="messages-empty">暂无留言</div>
+    </div>
+  </div>
+
   <!-- Statistics Modal -->
   <div id="statsModal" class="modal-overlay">
     <div class="modal-content">
@@ -1305,6 +1440,20 @@
     let statsData = null;
     let authToken = localStorage.getItem(AUTH_TOKEN_KEY);
     let modelMap = {}; // Will be populated from API response
+    let currentUserName = null; // Track current authenticated user
+    let hiddenMessages = JSON.parse(localStorage.getItem('hiddenMessages') || '{}'); // Track hidden messages with MD5
+    
+    // Simple MD5 implementation for message hashing
+    function simpleMD5(str) {
+      // Simple hash function (not cryptographically secure, but good enough for this use case)
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return hash.toString(16);
+    }
 
     function formatModelName(model) {
       // Use model map from API if available
@@ -1938,8 +2087,14 @@
       }
     }
 
-    function showError(message) {
-      document.getElementById('errorMessage').style.display = 'flex';
+    function showError(message, type = 'error') {
+      const errorMessage = document.getElementById('errorMessage');
+      errorMessage.style.display = 'flex';
+      if (type === 'success') {
+        errorMessage.style.background = 'var(--success-color)';
+      } else {
+        errorMessage.style.background = 'var(--danger-color)';
+      }
       document.getElementById('errorText').textContent = message;
       setTimeout(() => {
         document.getElementById('errorMessage').style.display = 'none';
@@ -1953,6 +2108,201 @@
       document.getElementById('accountsSection').style.display = 'none';
       document.getElementById('keysTable').style.display = 'none';
       document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    async function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const message = messageInput.value.trim();
+      
+      if (!message) {
+        // Empty message not allowed from frontend
+        showError('请输入留言内容');
+        return;
+      }
+      
+      try {
+        const response = await fetch(API_URL + '?leave_message=' + encodeURIComponent(message), {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ auth_token: authToken })
+        });
+        
+        if (!response.ok) {
+          throw new Error('发送留言失败');
+        }
+        
+        const data = await response.json();
+        
+        // Update stats data
+        statsData = data;
+        
+        // Clear input
+        messageInput.value = '';
+        
+        // Update display
+        updateStatsData(data);
+        displayMessages(data);
+      } catch (error) {
+        showError(error.message || '发送留言失败');
+      }
+    }
+    
+    async function clearOwnMessage() {
+      try {
+        const response = await fetch(API_URL + '?leave_message=', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ auth_token: authToken })
+        });
+        
+        if (!response.ok) {
+          throw new Error('清除留言失败');
+        }
+        
+        const data = await response.json();
+        
+        // Update stats data
+        statsData = data;
+        
+        // Update display
+        updateStatsData(data);
+        displayMessages(data);
+      } catch (error) {
+        showError(error.message || '清除留言失败');
+      }
+    }
+    
+    function hideUserMessage(userName, messageContent) {
+      // Store message hash to track if message changes
+      const messageHash = simpleMD5(messageContent);
+      hiddenMessages[userName] = messageHash;
+      localStorage.setItem('hiddenMessages', JSON.stringify(hiddenMessages));
+      
+      // Re-display messages
+      if (statsData) {
+        displayMessages(statsData);
+      }
+    }
+    
+    function displayMessages(data) {
+      const messagesSection = document.getElementById('messagesSection');
+      const messagesBody = document.getElementById('messagesBody');
+      
+      if (!data || !data.data) {
+        return;
+      }
+      
+      // Collect all messages
+      const messages = [];
+      let ownMessage = null;
+      
+      data.data.forEach(user => {
+        if (user.leave_message && user.leave_message.message) {
+          const messageData = {
+            userName: user.name,
+            message: user.leave_message.message,
+            timestamp: user.leave_message.timestamp
+          };
+          
+          if (user.name === currentUserName) {
+            ownMessage = messageData;
+          } else {
+            // Check if this user's message is hidden and if it has changed
+            const currentMessageHash = simpleMD5(user.leave_message.message);
+            const storedHash = hiddenMessages[user.name];
+            
+            if (!storedHash) {
+              // Message not hidden, show it
+              messages.push(messageData);
+            } else if (storedHash !== currentMessageHash) {
+              // Message has been updated, show it again and clear the hidden flag
+              delete hiddenMessages[user.name];
+              localStorage.setItem('hiddenMessages', JSON.stringify(hiddenMessages));
+              messages.push(messageData);
+            }
+            // If storedHash === currentMessageHash, the message is still hidden
+          }
+        }
+      });
+      
+      // Sort messages by timestamp (newest first)
+      messages.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      });
+      
+      // Build HTML
+      let html = '';
+      
+      // Own message at top
+      if (ownMessage) {
+        html += `
+          <div class="message-item own-message">
+            <button class="message-close" onclick="clearOwnMessage()" title="清除">×</button>
+            <div class="message-author">你的留言</div>
+            <div class="message-content">${ownMessage.message}</div>
+          </div>
+        `;
+      }
+      
+      // Other messages
+      messages.forEach(msg => {
+        // Escape message content for use in onclick attribute
+        const escapedMessage = msg.message.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
+        html += `
+          <div class="message-item">
+            <button class="message-close" onclick="hideUserMessage('${msg.userName}', '${escapedMessage}')" title="隐藏">×</button>
+            <div class="message-author">${msg.userName}的留言</div>
+            <div class="message-content">${msg.message}</div>
+          </div>
+        `;
+      });
+      
+      if (!html) {
+        html = '<div class="messages-empty">暂无留言</div>';
+      }
+      
+      messagesBody.innerHTML = html;
+      
+      // Show messages section if there are messages, hide if no messages
+      if (ownMessage || messages.length > 0) {
+        messagesSection.style.display = 'flex';
+      } else {
+        messagesSection.style.display = 'none';
+      }
+    }
+    
+    function formatMessageTime(timestamp) {
+      if (!timestamp) return '';
+      
+      try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return '刚刚';
+        if (minutes < 60) return `${minutes}分钟前`;
+        if (hours < 24) return `${hours}小时前`;
+        if (days < 7) return `${days}天前`;
+        
+        return date.toLocaleDateString('zh-CN');
+      } catch (e) {
+        return '';
+      }
+    }
+    
+    function closeMessages() {
+      document.getElementById('messagesSection').style.display = 'none';
     }
 
     async function loadStats(isInitialLoad = false) {
@@ -2009,11 +2359,26 @@
           modelMap = data.model_map;
         }
         
+        // Track current user from API response
+        if (data.authenticated_user) {
+          currentUserName = data.authenticated_user;
+        }
+        
+        // Show message input if authenticated
+        if (authToken) {
+          document.getElementById('apiKeyInput').style.display = 'none';
+          document.getElementById('authButton').style.display = 'none';
+          document.getElementById('messageInput').style.display = 'block';
+          document.getElementById('messageButton').style.display = 'block';
+        }
+        
         // If this is a refresh and data is already displayed, just update the data
         if (!isInitialLoad && document.getElementById('summaryStats').style.display === 'grid') {
           updateStatsData(data);
+          displayMessages(data);
         } else {
           displayStats(data);
+          displayMessages(data);
         }
       } catch (error) {
         // Check if we need authentication
@@ -2085,9 +2450,16 @@
           localStorage.setItem(AUTH_TOKEN_KEY, authToken);
         }
         
-        // Hide auth section and display stats
+        // Hide auth section and show message input
         document.getElementById('apiKeyInput').style.display = 'none';
         document.getElementById('authButton').style.display = 'none';
+        document.getElementById('messageInput').style.display = 'block';
+        document.getElementById('messageButton').style.display = 'block';
+        
+        // Track current user name from the API response
+        if (data.authenticated_user) {
+          currentUserName = data.authenticated_user;
+        }
         
         // Display the stats
         statsData = data;
@@ -2098,6 +2470,7 @@
         }
         
         displayStats(data);
+        displayMessages(data);
         
       } catch (error) {
         showError(error.message || '认证失败');

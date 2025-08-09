@@ -145,6 +145,9 @@ MAX_AUTH_TOKENS = 100
 AUTH_TOKEN_EXPIRY = 86400  # 24 hours in seconds
 AUTH_TOKEN_FILE = 'auth_token.json'
 
+# User messages cache (username -> message_data) - never expires unless Python restarts
+user_messages_cache = {}
+
 # Request log file
 REQUEST_LOG_FILE = 'requests.log'
 
@@ -1007,6 +1010,22 @@ def validate_key_name(name: str) -> bool:
             return True
     return False
 
+def user_exists(user_name: str) -> bool:
+    """Check if a user exists in Redis by checking API keys"""
+    try:
+        all_keys = redis_client.keys('apikey:*')
+        for key in all_keys:
+            if key == 'apikey:hash_map':
+                continue
+            key_data = redis_client.hgetall(key)
+            if key_data and key_data.get('name') == user_name and key_data.get('isActive') == 'true':
+                return True
+        return False
+    except Exception as e:
+        print(f"⚠️ Failed to check user existence: {e}")
+        return False
+
+
 def generate_all_detailed_stats(all_redis_data: Dict[str, Any]) -> Dict[str, Any]:
     """Generate all detailed statistics from preloaded Redis data"""
     
@@ -1295,7 +1314,7 @@ async def get_hourly_detailed_stats(request: QueryRequest, http_request: Request
     }
 
 @app.post("/simple-board/query_all")
-async def get_all_stats(request: QueryRequest, http_request: Request):
+async def get_all_stats(request: QueryRequest, http_request: Request, leave_message: Optional[str] = None):
     """Get statistics for all API keys with detailed breakdown - requires API key or auth token"""
     
     # Variables for logging
@@ -1345,6 +1364,33 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
         requesting_user_name = user_name  # Store for SHOW_EXACT_TIME_LIST check
     else:
         raise HTTPException(status_code=401, detail="API key or auth token required")
+    
+    # Handle leave_message parameter if provided and user is authenticated
+    if leave_message is not None and requesting_user_name:
+        # First check if the user exists in Redis
+        if not user_exists(requesting_user_name):
+            print(f"⚠️ User {requesting_user_name} does not exist in Redis, ignoring message")
+        else:
+            try:
+                if leave_message == "":
+                    # Empty message means clear the message
+                    if requesting_user_name in user_messages_cache:
+                        del user_messages_cache[requesting_user_name]
+                        print(f"✉️ Cleared message for user: {requesting_user_name}")
+                else:
+                    # Limit message to 300 characters
+                    truncated_message = leave_message[:300] if len(leave_message) > 300 else leave_message
+                    if len(leave_message) > 300:
+                        print(f"✂️ Truncated message from {len(leave_message)} to 300 characters")
+                    
+                    # Store the message in memory cache
+                    user_messages_cache[requesting_user_name] = {
+                        'message': truncated_message,
+                        'timestamp': datetime.now(timezone.utc).isoformat()
+                    }
+                    print(f"✉️ Stored message for user: {requesting_user_name} (length: {len(truncated_message)})")
+            except Exception as e:
+                print(f"⚠️ Failed to store message: {e}")
     
     # Log the request
     client_ip = get_client_ip(http_request)
@@ -1551,11 +1597,26 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
     detailed_stats = detailed_results['api_detailed_stats']
     model_detailed_stats = detailed_results['model_detailed_stats']
     
-    # Clean up sensitive data from api_stats before returning
+    # Get user messages from memory cache and validate users still exist
+    validated_messages = {}
+    for user_name, msg_data in user_messages_cache.items():
+        # Check if user still exists in Redis
+        if user_exists(user_name):
+            validated_messages[user_name] = msg_data
+        else:
+            print(f"⚠️ User {user_name} no longer exists, skipping message")
+    
+    # Clean up sensitive data from api_stats before returning and add leave_message field
     cleaned_stats = []
     for stat in api_stats:
         # Create a copy without sensitive fields
         cleaned_stat = {k: v for k, v in stat.items() if k not in ['id', 'allowed_clients', 'created_at']}
+        # Add leave_message field if this user has a message
+        user_name = stat.get('name', '')
+        if user_name in validated_messages:
+            cleaned_stat['leave_message'] = validated_messages[user_name]
+        else:
+            cleaned_stat['leave_message'] = None
         cleaned_stats.append(cleaned_stat)
     
     response_data = {
@@ -1566,7 +1627,8 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
         'detailed_stats': detailed_stats,
         'model_detailed_stats': model_detailed_stats,
         'model_map': MODEL_MAP,  # Add model map to response
-        'query_time': datetime.now(timezone.utc).isoformat()
+        'query_time': datetime.now(timezone.utc).isoformat(),
+        'authenticated_user': requesting_user_name  # Add authenticated user name
     }
     
     # If authenticated via API key, include the auth token in response
