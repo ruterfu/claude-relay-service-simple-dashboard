@@ -56,6 +56,63 @@ redis_client = redis.Redis(
 )
 
 
+# Get SHOW_EXACT_TIME_LIST from environment
+SHOW_EXACT_TIME_LIST = os.environ.get('SHOW_EXACT_TIME_LIST', '').split(',') if os.environ.get('SHOW_EXACT_TIME_LIST') else []
+SHOW_EXACT_TIME_LIST = [user.strip() for user in SHOW_EXACT_TIME_LIST if user.strip()]
+if SHOW_EXACT_TIME_LIST:
+    print(f"📅 Exact time display enabled for users: {', '.join(SHOW_EXACT_TIME_LIST)}")
+
+def format_last_used_at(last_used_at: str, user_name: str, requesting_user: str = None) -> str:
+    """Format last_used_at timestamp based on user name and environment settings
+    
+    Args:
+        last_used_at: The timestamp to format
+        user_name: The name of the API key being displayed
+        requesting_user: The name of the user making the request (for auth_token requests)
+    """
+    if not last_used_at:
+        return ""
+    
+    # Check if user should see exact time
+    # Priority: check requesting_user first (for auth_token requests), then user_name (for API key requests)
+    check_user = requesting_user if requesting_user else user_name
+    if check_user in SHOW_EXACT_TIME_LIST:
+        try:
+            dt = datetime.fromisoformat(last_used_at.replace('Z', '+00:00'))
+            # Convert to UTC+8
+            dt_utc8 = dt + timedelta(hours=8)
+            return dt_utc8.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            return ""
+    
+    # Otherwise, format as relative time
+    try:
+        dt = datetime.fromisoformat(last_used_at.replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+        diff = now - dt
+        
+        # Calculate time difference
+        minutes = diff.total_seconds() / 60
+        hours = minutes / 60
+        days = hours / 24
+        
+        if minutes < 1:
+            return "正在使用"
+        elif hours < 1:
+            return "刚刚使用"
+        elif days < 1:
+            return "一天内"
+        elif days < 7:
+            return "这个星期"
+        elif days < 30:
+            return "本月内"
+        elif days < 60:
+            return "两个月内"
+        else:
+            return "好久没用"
+    except:
+        return ""
+
 # Salt for auth token generation
 def load_auth_salt():
     """Load auth salt from file, generate if not exists"""
@@ -296,7 +353,7 @@ def validate_auth_token(auth_token: str, request: Request = None) -> bool:
     
     return True
 
-def add_auth_token(auth_token: str, request: Request, user_id: str = None):
+def add_auth_token(auth_token: str, request: Request, user_id: str = None, user_name: str = None):
     """Add auth token to cache with user info and save to file"""
     global auth_token_cache
     
@@ -313,7 +370,7 @@ def add_auth_token(auth_token: str, request: Request, user_id: str = None):
     user_agent = request.headers.get('User-Agent', 'Unknown')
     current_time = time.time()
     
-    # Add new token with detailed info including user_id
+    # Add new token with detailed info including user_id and user_name
     auth_token_cache[auth_token] = {
         'created_at': current_time,
         'last_access': current_time,
@@ -321,12 +378,13 @@ def add_auth_token(auth_token: str, request: Request, user_id: str = None):
         'last_ip': client_ip,
         'user_agent': user_agent,
         'last_user_agent': user_agent,
-        'user_id': user_id  # Store the user_id for validation
+        'user_id': user_id,  # Store the user_id for validation
+        'user_name': user_name  # Store the user_name for display
     }
     
     # Save to file
     save_auth_tokens()
-    print(f"🔐 New auth token created for user: {user_id} | IP: {client_ip} | User-Agent: {user_agent[:50]}{'...' if len(user_agent) > 50 else ''}")
+    print(f"🔐 New auth token created for user: {user_name or user_id} | IP: {client_ip} | User-Agent: {user_agent[:50]}{'...' if len(user_agent) > 50 else ''}")
 
 def validate_api_key(api_key: str) -> Optional[str]:
     """Validate API key and return its ID"""
@@ -357,7 +415,7 @@ def validate_api_key(api_key: str) -> Optional[str]:
     
     return key_id
 
-def get_api_key_stats(key_id: str, include_sensitive: bool = False) -> Dict[str, Any]:
+def get_api_key_stats(key_id: str, include_sensitive: bool = False, requesting_user: str = None) -> Dict[str, Any]:
     """Get statistics for a single API key"""
     today = get_date_string_in_timezone()
     current_month = get_current_month()
@@ -559,7 +617,9 @@ def get_api_key_stats(key_id: str, include_sensitive: bool = False) -> Dict[str,
         'model_stats_monthly': model_stats_monthly,
         'permissions': key_data.get('permissions', 'unknown'),
         'is_active': key_data.get('isActive') == 'true',
-        'last_used_at': key_data.get('lastUsedAt', '')  # Always keep last used time
+        'last_used_at': format_last_used_at(key_data.get('lastUsedAt', ''), key_data.get('name', 'Unknown'), requesting_user),
+        '_raw_last_used_at': key_data.get('lastUsedAt', ''),  # Add raw timestamp for sorting
+        'status': None  # Will be calculated later when accounts info is available
     }
     
     # Include sensitive data only if requested
@@ -570,7 +630,7 @@ def get_api_key_stats(key_id: str, include_sensitive: bool = False) -> Dict[str,
     
     return result
 
-def get_api_key_stats_from_data(key_id: str, all_redis_data: Dict[str, Any], include_sensitive: bool = False) -> Dict[str, Any]:
+def get_api_key_stats_from_data(key_id: str, all_redis_data: Dict[str, Any], include_sensitive: bool = False, requesting_user: str = None) -> Dict[str, Any]:
     """Get statistics for a single API key from preloaded Redis data"""
     today = get_date_string_in_timezone()
     current_month = get_current_month()
@@ -761,7 +821,9 @@ def get_api_key_stats_from_data(key_id: str, all_redis_data: Dict[str, Any], inc
         'model_stats_monthly': model_stats_monthly,
         'permissions': key_data.get('permissions', 'unknown'),
         'is_active': key_data.get('isActive') == 'true',
-        'last_used_at': key_data.get('lastUsedAt', '')
+        'last_used_at': format_last_used_at(key_data.get('lastUsedAt', ''), key_data.get('name', 'Unknown'), requesting_user),
+        '_raw_last_used_at': key_data.get('lastUsedAt', ''),  # Add raw timestamp for sorting
+        'status': None  # Will be calculated later when accounts info is available
     }
     
     # Include sensitive data only if requested
@@ -883,6 +945,56 @@ def calculate_window_cost_from_data(claude_account_id: str, window_start: dateti
                         total_cost += hour_cost
     
     return total_cost
+
+def get_api_key_status(last_used_at: str, accounts: list) -> str:
+    """Calculate API key status based on last usage time and window period
+    
+    Returns:
+        'active' - Used within last 30 minutes
+        'window' - Used outside 30 minutes but within window period
+        'ok' - All other normal states
+    """
+    if not last_used_at or last_used_at == '':
+        return 'ok'
+    
+    try:
+        last_used_time = datetime.fromisoformat(last_used_at.replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+        
+        # Check if there's a valid window
+        window_start = None
+        window_end = None
+        
+        if accounts and len(accounts) > 0:
+            for account in accounts:
+                if 'window_start' in account and 'window_end' in account:
+                    ws = datetime.fromisoformat(account['window_start'].replace('Z', '+00:00'))
+                    we = datetime.fromisoformat(account['window_end'].replace('Z', '+00:00'))
+                    if now >= ws and now < we:
+                        window_start = ws
+                        window_end = we
+                        break
+        
+        # Check if last used is 24 hours ago
+        hours_diff = (now - last_used_time).total_seconds() / 3600
+        if hours_diff >= 24:
+            return 'ok'
+        
+        # Check if used within last 30 minutes
+        minutes_diff = (now - last_used_time).total_seconds() / 60
+        if minutes_diff <= 30:
+            return 'active'
+        
+        # If there's a window period
+        if window_start and window_end:
+            # Check if last used is within window
+            if last_used_time >= window_start and last_used_time < window_end:
+                return 'window'
+        
+        # All other cases
+        return 'ok'
+    except:
+        return 'ok'
 
 def validate_key_name(name: str) -> bool:
     """Check if a key name exists in Redis"""
@@ -1071,11 +1183,15 @@ async def get_hourly_detailed_stats(request: QueryRequest, http_request: Request
         if not key_id:
             raise HTTPException(status_code=401, detail="Invalid API key")
         
+        # Get user name from Redis
+        key_data = redis_client.hgetall(f'apikey:{key_id}')
+        user_name = key_data.get('name', 'Unknown') if key_data else 'Unknown'
+        
         # Generate and store auth token
         auth_token = generate_auth_token(request.api_key)
-        add_auth_token(auth_token, http_request, key_id)
+        add_auth_token(auth_token, http_request, key_id, user_name)
         
-        print(f"✅ Authenticated via API key: {key_id}")
+        print(f"✅ Authenticated via API key: {key_id} ({user_name})")
     else:
         raise HTTPException(status_code=401, detail="API key or auth token required")
     
@@ -1187,6 +1303,7 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
     masked_key = ""
     auth_token_for_log = ""
     user_id_for_log = ""
+    requesting_user_name = ""  # Track the requesting user's name for SHOW_EXACT_TIME_LIST check
     
     # Check if auth_token is provided and valid
     if request.auth_token:
@@ -1195,8 +1312,10 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
             auth_method = "auth_token"
             masked_key = "-"
             auth_token_for_log = request.auth_token
-            # Get user_id from token cache
-            user_id_for_log = auth_token_cache.get(request.auth_token, {}).get('user_id', 'unknown')
+            # Get user_id and user_name from token cache
+            token_info = auth_token_cache.get(request.auth_token, {})
+            user_id_for_log = token_info.get('user_id', 'unknown')
+            requesting_user_name = token_info.get('user_name', '')
         else:
             raise HTTPException(status_code=401, detail="authfailed")
     # Check if API key is provided
@@ -1210,15 +1329,20 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
         if not key_id:
             raise HTTPException(status_code=401, detail="Invalid API key")
         
+        # Get user name from Redis
+        key_data = redis_client.hgetall(f'apikey:{key_id}')
+        user_name = key_data.get('name', 'Unknown') if key_data else 'Unknown'
+        
         # Generate and store auth token
         auth_token = generate_auth_token(request.api_key)
-        add_auth_token(auth_token, http_request, key_id)
+        add_auth_token(auth_token, http_request, key_id, user_name)
         
-        print(f"✅ Authenticated via API key: {key_id}")
+        print(f"✅ Authenticated via API key: {key_id} ({user_name})")
         auth_method = "api_key"
         masked_key = mask_api_key(request.api_key)
         auth_token_for_log = auth_token
         user_id_for_log = key_id
+        requesting_user_name = user_name  # Store for SHOW_EXACT_TIME_LIST check
     else:
         raise HTTPException(status_code=401, detail="API key or auth token required")
     
@@ -1338,15 +1462,44 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
         key_id = key.replace('apikey:', '')
         
         # Get stats for this key using preloaded data
-        stats = get_api_key_stats_from_data(key_id, all_redis_data, include_sensitive=True)
+        stats = get_api_key_stats_from_data(key_id, all_redis_data, include_sensitive=True, requesting_user=requesting_user_name)
         if stats:
             api_stats.append(stats)
             print(f"  ✅ Added stats for: {stats['name']} ({key_id})")
         else:
             print(f"  ⏭️  Skipped inactive key: {key_id}")
     
-    # Sort by name
-    api_stats.sort(key=lambda x: x['name'])
+    # Sort by last used time and assign sort values
+    api_stats_with_time = []
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    
+    for stat in api_stats:
+        # Parse the raw timestamp if available
+        raw_timestamp = stat.get('_raw_last_used_at', '')
+        if raw_timestamp:
+            try:
+                # Parse ISO format timestamp
+                last_used_dt = datetime.fromisoformat(raw_timestamp.replace('Z', '+00:00'))
+                api_stats_with_time.append((stat, last_used_dt, stat.get('name', '')))
+            except:
+                # If parsing fails, use epoch as fallback
+                api_stats_with_time.append((stat, epoch, stat.get('name', '')))
+        else:
+            # No timestamp, use epoch
+            api_stats_with_time.append((stat, epoch, stat.get('name', '')))
+    
+    # Sort by:
+    # 1. Timestamp (newest first) - users with recent activity come first
+    # 2. Name (alphabetically) - for users with no recent activity (epoch timestamp)
+    api_stats_with_time.sort(key=lambda x: (-x[1].timestamp(), x[2]))
+    
+    # Assign sort values and rebuild api_stats (keep _raw_last_used_at for now)
+    api_stats = []
+    for idx, (stat, _, _) in enumerate(api_stats_with_time):
+        # The most recently used gets the highest sort value
+        stat['sort'] = len(api_stats_with_time) - idx
+        # Keep the raw timestamp for status calculation
+        api_stats.append(stat)
     
     # Get all unique Claude accounts with session windows from loaded data
     accounts = []
@@ -1384,6 +1537,13 @@ async def get_all_stats(request: QueryRequest, http_request: Request):
                         'window_limit': 120.0  # $120 limit per window
                     })
                     seen_account_ids.add(claude_account_id)
+    
+    # Now calculate status for each API key using the accounts information
+    for stat in api_stats:
+        raw_timestamp = stat.get('_raw_last_used_at', '')
+        stat['status'] = get_api_key_status(raw_timestamp, accounts)
+        # Remove the internal raw timestamp field from response
+        stat.pop('_raw_last_used_at', None)
     
     # Generate ALL detailed stats from preloaded data in one go
     print("📈 Generating detailed statistics...")

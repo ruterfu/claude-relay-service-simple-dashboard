@@ -1341,15 +1341,8 @@
     }
 
     function formatDate(dateStr) {
-      if (!dateStr) return '从未使用';
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Server already formats the date, just return as is
+      return dateStr || '无';
     }
 
     function calculateCostLimits(keys) {
@@ -1752,57 +1745,17 @@
     }
 
     function getApiKeyStatus(key, accounts) {
-      const lastUsedTime = key.last_used_at ? new Date(key.last_used_at) : null;
-      const now = new Date();
-      
-      // Check if there's a valid window
-      let windowStart = null;
-      let windowEnd = null;
-      
-      if (accounts && accounts.length > 0) {
-        for (const account of accounts) {
-          if (account.window_start && account.window_end) {
-            const ws = new Date(account.window_start);
-            const we = new Date(account.window_end);
-            if (now >= ws && now < we) {
-              windowStart = ws;
-              windowEnd = we;
-              break;
-            }
-          }
-        }
-      }
-      
-      // If never used
-      if (!lastUsedTime || key.last_used_at === '') {
-        return { badge: 'badge-gray', text: '正常' };
-      }
-      
-      // Check if last used is 24 hours ago
-      const hoursDiff = (now - lastUsedTime) / (1000 * 60 * 60);
-      if (hoursDiff >= 24) {
-        return { badge: 'badge-gray', text: '正常' };
-      }
-      
-      // If there's a window period
-      if (windowStart && windowEnd) {
-        // Check if last used is within window
-        if (lastUsedTime >= windowStart && lastUsedTime < windowEnd) {
-          // Check if used within last 30 minutes
-          const minutesDiff = (now - lastUsedTime) / (1000 * 60);
-          if (minutesDiff <= 30) {
-            return { badge: 'badge-dark-green', text: '活跃' };
-          } else {
-            return { badge: 'badge-light-green', text: '活跃' };
-          }
-        } else {
-          // Not used in current window
+      // Always use the status from backend
+      // Backend calculates status based on last_used_at and window period
+      switch(key.status) {
+        case 'active':
+          return { badge: 'badge-dark-green', text: '活跃' };
+        case 'window':
+          return { badge: 'badge-light-green', text: '活跃' };
+        case 'ok':
+        default:
           return { badge: 'badge-gray', text: '正常' };
-        }
       }
-      
-      // No window, but used within 24 hours
-      return { badge: 'badge-gray', text: '正常' };
     }
 
     function displayAccounts(accounts) {
@@ -2194,11 +2147,10 @@
       const tbody = document.getElementById('keysTableBody');
       tbody.innerHTML = '';
       
-      // Sort keys by last used time (newest first)
+      // Sort keys by sort field from backend (descending order, highest sort value first)
       const sortedKeys = [...data.data].sort((a, b) => {
-        const timeA = a.last_used_at ? new Date(a.last_used_at) : new Date(0);
-        const timeB = b.last_used_at ? new Date(b.last_used_at) : new Date(0);
-        return timeB - timeA; // Descending order (newest first)
+        // Backend always provides sort field, use it directly
+        return b.sort - a.sort; // Descending order (highest sort value first)
       });
       
       sortedKeys.forEach((key, index) => {
@@ -2570,7 +2522,7 @@
           <td class="cost-value">${formatCost(key.month_cost)}</td>
           <td>${createLimitsInfo(key)}</td>
           <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
-          <td>${formatDate(key.last_used_at)}</td>
+          <td>${key.last_used_at || '无'}</td>
         `;
         
         tbody.appendChild(row);
@@ -2618,11 +2570,10 @@
       const tbody = document.getElementById('keysTableBody');
       tbody.innerHTML = '';
       
-      // Sort keys by last used time (newest first)
+      // Sort keys by sort field from backend (descending order, highest sort value first)
       const sortedKeys = [...data.data].sort((a, b) => {
-        const timeA = a.last_used_at ? new Date(a.last_used_at) : new Date(0);
-        const timeB = b.last_used_at ? new Date(b.last_used_at) : new Date(0);
-        return timeB - timeA; // Descending order (newest first)
+        // Backend always provides sort field, use it directly
+        return b.sort - a.sort; // Descending order (highest sort value first)
       });
       
       sortedKeys.forEach((key, index) => {
@@ -2994,7 +2945,7 @@
           <td class="cost-value">${formatCost(key.month_cost)}</td>
           <td>${createLimitsInfo(key)}</td>
           <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
-          <td>${formatDate(key.last_used_at)}</td>
+          <td>${key.last_used_at || '无'}</td>
         `;
         
         tbody.appendChild(row);
