@@ -283,9 +283,9 @@
       color: var(--secondary-color) !important;
     }
 
-    .badge-light-green {
-      background: rgba(45, 206, 137, 0.15) !important;
-      color: #1fa871 !important;
+    .badge-light-yellow {
+      background: rgba(218, 150, 66, 0.2) !important;
+      color: #ba9a7b !important;
     }
 
     .badge-dark-green {
@@ -1763,6 +1763,16 @@
       return `<div class="multi-segment-progress window-bar">${segments}</div>`;
     }
 
+    function timeToInt(d) {
+      if(typeof(d) === "string") {
+        dt = d.split(" ")[0].split("-")
+        return parseInt(dt[0]) * 10000 + parseInt(dt[1]) * 100 + parseInt(dt[2])
+      } else {
+        return d.getFullYear() * 10000 +  (d.getMonth() + 1) * 100 +  d.getDate();
+      }
+        
+    }
+
     function createWeeklyWindowCard(account, userWeeklyCosts) {
       const now = new Date();
       
@@ -1801,20 +1811,22 @@
       // Calculate weekly cost from all models in statsData
       let weeklyCost = 0;
       if (statsData && statsData.model_detailed_stats) {
-        const weekStartStr = monday.toISOString().split('T')[0];
-        const weekEndStr = sunday.toISOString().split('T')[0];
+        const weekStartInt = timeToInt(monday);
+        const weekEndInt = timeToInt(sunday);
         
         // Iterate through all models
         Object.keys(statsData.model_detailed_stats).forEach(modelName => {
           const modelData = statsData.model_detailed_stats[modelName];
           
           Object.keys(modelData).forEach(dateStr => {
+            const dateInt = timeToInt(dateStr)
             // Check if this date is within this week
-            if (dateStr >= weekStartStr && dateStr <= weekEndStr) {
+            if (dateInt >= weekStartInt && dateInt <= weekEndInt) {
               const dayData = modelData[dateStr];
               if (dayData && Array.isArray(dayData)) {
                 dayData.forEach(entry => {
                   if (entry.cost) {
+
                     weeklyCost += entry.cost;
                   }
                 });
@@ -1900,7 +1912,7 @@
         case 'active':
           return { badge: 'badge-dark-green', text: '活跃' };
         case 'window':
-          return { badge: 'badge-light-green', text: '活跃' };
+          return { badge: 'badge-light-yellow', text: '闲置' };
         case 'ok':
         default:
           return { badge: 'badge-gray', text: '正常' };
