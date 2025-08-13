@@ -56,11 +56,11 @@ redis_client = redis.Redis(
 )
 
 
-# Get SHOW_EXACT_TIME_LIST from environment
-SHOW_EXACT_TIME_LIST = os.environ.get('SHOW_EXACT_TIME_LIST', '').split(',') if os.environ.get('SHOW_EXACT_TIME_LIST') else []
-SHOW_EXACT_TIME_LIST = [user.strip() for user in SHOW_EXACT_TIME_LIST if user.strip()]
-if SHOW_EXACT_TIME_LIST:
-    print(f"📅 Exact time display enabled for users: {', '.join(SHOW_EXACT_TIME_LIST)}")
+# Get ADMIN_LIST from environment
+ADMIN_LIST = os.environ.get('ADMIN_LIST', '').split(',') if os.environ.get('ADMIN_LIST') else []
+ADMIN_LIST = [user.strip() for user in ADMIN_LIST if user.strip()]
+if ADMIN_LIST:
+    print(f"👑 Admin users: {', '.join(ADMIN_LIST)}")
 
 def format_last_used_at(last_used_at: str, user_name: str, requesting_user: str = None) -> str:
     """Format last_used_at timestamp based on user name and environment settings
@@ -76,7 +76,7 @@ def format_last_used_at(last_used_at: str, user_name: str, requesting_user: str 
     # Check if user should see exact time
     # Priority: check requesting_user first (for auth_token requests), then user_name (for API key requests)
     check_user = requesting_user if requesting_user else user_name
-    if check_user in SHOW_EXACT_TIME_LIST:
+    if check_user in ADMIN_LIST:
         try:
             dt = datetime.fromisoformat(last_used_at.replace('Z', '+00:00'))
             # Convert to UTC+8
@@ -98,8 +98,6 @@ def format_last_used_at(last_used_at: str, user_name: str, requesting_user: str 
         
         if minutes < 1:
             return "正在使用"
-        elif hours < 1:
-            return "刚刚使用"
         elif days < 1:
             return "一天内"
         elif days < 7:
@@ -347,11 +345,27 @@ def validate_auth_token(auth_token: str, request: Request = None) -> bool:
             save_auth_tokens()
             return False
     
-    # Update last access time, IP and user agent if request is provided
+    # Update last access time, IP, user agent and add to request_time list if request is provided
     if request:
         token_info['last_access'] = time.time()
         token_info['last_ip'] = get_client_ip(request)
         token_info['last_user_agent'] = request.headers.get('User-Agent', 'Unknown')
+        
+        # Add current time with IP to request_time list (UTC+8 format)
+        current_time_utc8 = get_date_in_timezone().strftime('%Y-%m-%d %H:%M:%S')
+        client_ip = get_client_ip(request)
+        
+        # Initialize request_time list if not exists
+        if 'request_time' not in token_info:
+            token_info['request_time'] = []
+        
+        # Add new time with IP to the list (format: "IP, timestamp")
+        token_info['request_time'].append(f"{client_ip}, {current_time_utc8}")
+        
+        # Keep only last 50 entries
+        if len(token_info['request_time']) > 50:
+            token_info['request_time'] = token_info['request_time'][-50:]
+        
         save_auth_tokens()
     
     return True
@@ -1026,6 +1040,123 @@ def user_exists(user_name: str) -> bool:
         return False
 
 
+def calculate_weekly_statistics(all_redis_data: Dict[str, Any], api_stats: list) -> Dict[str, Any]:
+    """Calculate weekly statistics from preloaded Redis data"""
+    from datetime import datetime, timedelta, timezone
+    
+    now = datetime.now(timezone.utc)
+    
+    # Calculate this week's Monday and Sunday
+    dayOfWeek = now.weekday()  # 0 = Monday, 6 = Sunday
+    monday = now - timedelta(days=dayOfWeek)
+    monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    sunday = monday + timedelta(days=6, hours=23, minutes=59, seconds=59, microseconds=999999)
+    
+    # Calculate time progress
+    totalWeekDuration = (sunday - monday).total_seconds()
+    elapsed = (now - monday).total_seconds()
+    remaining = (sunday - now).total_seconds()
+    timeProgress = min((elapsed / totalWeekDuration) * 100, 100)
+    
+    # Format remaining time
+    remainingDays = int(remaining / (60 * 60 * 24))
+    remainingHours = int((remaining % (60 * 60 * 24)) / (60 * 60))
+    remainingMinutes = int((remaining % (60 * 60)) / 60)
+    
+    if remainingDays > 0:
+        remainingText = f"剩余 {remainingDays}天{remainingHours}小时{remainingMinutes}分钟"
+    elif remainingHours > 0:
+        remainingText = f"剩余 {remainingHours}小时{remainingMinutes}分钟"
+    else:
+        remainingText = f"剩余 {remainingMinutes}分钟"
+    
+    # Calculate weekly cost from detailed stats
+    weeklyCost = 0.0
+    userWeeklyCosts = []
+    
+    weekStartInt = int(monday.strftime('%Y%m%d'))
+    weekEndInt = int(sunday.strftime('%Y%m%d'))
+    
+    # Iterate through each API key to calculate weekly costs
+    for key_stat in api_stats:
+        userWeeklyCost = 0.0
+        userName = key_stat.get('name', '')
+        
+        # Find all hourly usage data for this user within the week
+        for redis_key, redis_value in all_redis_data.items():
+            if redis_key.startswith(f"usage:") and ':model:hourly:' in redis_key:
+                parts = redis_key.split(':')
+                if len(parts) >= 7:
+                    # Check if this belongs to the current user (need to match key_id)
+                    # We need to find the key_id for this user
+                    key_id = None
+                    for rk, rv in all_redis_data.items():
+                        if rk.startswith('apikey:') and rk != 'apikey:hash_map':
+                            if rv and rv.get('name') == userName:
+                                key_id = rk.replace('apikey:', '')
+                                break
+                    
+                    if key_id and parts[1] == key_id:
+                        date = parts[5]
+                        dateInt = int(date.replace('-', ''))
+                        
+                        # Check if this date is within this week
+                        if dateInt >= weekStartInt and dateInt <= weekEndInt:
+                            model = parts[4]
+                            
+                            # Calculate cost if we have pricing data
+                            if model in MODEL_PRICING and redis_value:
+                                pricing = MODEL_PRICING[model]
+                                
+                                input_tokens = int(redis_value.get('inputTokens', 0))
+                                output_tokens = int(redis_value.get('outputTokens', 0))
+                                cache_read_tokens = int(redis_value.get('cacheReadTokens', 0))
+                                cache_create_tokens = int(redis_value.get('cacheCreateTokens', 0))
+                                
+                                input_cost = input_tokens * pricing.get('input_cost_per_token', 0)
+                                output_cost = output_tokens * pricing.get('output_cost_per_token', 0)
+                                cache_read_cost = cache_read_tokens * pricing.get('cache_read_input_token_cost', 0)
+                                cache_create_cost = cache_create_tokens * pricing.get('cache_creation_input_token_cost', 0)
+                                
+                                hourly_cost = input_cost + output_cost + cache_read_cost + cache_create_cost
+                                userWeeklyCost += hourly_cost
+        
+        weeklyCost += userWeeklyCost
+        userWeeklyCosts.append({'name': userName, 'cost': userWeeklyCost})
+    
+    # Sort user costs by amount (highest first)
+    userWeeklyCosts.sort(key=lambda x: x['cost'], reverse=True)
+    
+    # Format week range
+    mondayStr = monday.strftime('%Y年%m月%d日')
+    sundayStr = sunday.strftime('%Y年%m月%d日')
+    
+    # Calculate which week of the month this is
+    firstDayOfMonth = monday.replace(day=1)
+    firstDayWeekDay = firstDayOfMonth.weekday()
+    firstMondayOffset = (7 - firstDayWeekDay) % 7
+    if firstMondayOffset == 0 and firstDayWeekDay != 0:
+        firstMondayOffset = 7
+    mondayOfFirstWeek = firstDayOfMonth + timedelta(days=firstMondayOffset - (0 if firstDayWeekDay == 0 else 7))
+    
+    weekNumber = ((monday - mondayOfFirstWeek).days // 7) + 1
+    
+    weekRange = f"{mondayStr} - {sundayStr}，第{weekNumber}周"
+    
+    weeklyLimit = 3600.0  # $3600 weekly limit
+    costPercentage = min((weeklyCost / weeklyLimit) * 100, 100)
+    
+    return {
+        'timeProgress': timeProgress,
+        'remainingText': remainingText,
+        'weeklyCost': weeklyCost,
+        'weeklyLimit': weeklyLimit,
+        'costPercentage': costPercentage,
+        'weekRange': weekRange,
+        'userWeeklyCosts': userWeeklyCosts
+    }
+
 def generate_all_detailed_stats(all_redis_data: Dict[str, Any]) -> Dict[str, Any]:
     """Generate all detailed statistics from preloaded Redis data"""
     
@@ -1587,7 +1718,11 @@ async def get_all_stats(request: QueryRequest, http_request: Request, leave_mess
     # Now calculate status for each API key using the accounts information
     for stat in api_stats:
         raw_timestamp = stat.get('_raw_last_used_at', '')
-        stat['status'] = get_api_key_status(raw_timestamp, accounts)
+        # If user is not admin, always return 'active' status
+        if requesting_user_name not in ADMIN_LIST:
+            stat['status'] = 'active'
+        else:
+            stat['status'] = get_api_key_status(raw_timestamp, accounts)
         # Remove the internal raw timestamp field from response
         stat.pop('_raw_last_used_at', None)
     
@@ -1596,6 +1731,40 @@ async def get_all_stats(request: QueryRequest, http_request: Request, leave_mess
     detailed_results = generate_all_detailed_stats(all_redis_data)
     detailed_stats = detailed_results['api_detailed_stats']
     model_detailed_stats = detailed_results['model_detailed_stats']
+    
+    # Filter detailed_stats based on ADMIN_LIST
+    # If user is not in ADMIN_LIST, only show their own data
+    if requesting_user_name not in ADMIN_LIST:
+        # Filter to only show current user's data
+        filtered_detailed_stats = {}
+        if requesting_user_name in detailed_stats:
+            filtered_detailed_stats[requesting_user_name] = detailed_stats[requesting_user_name]
+        detailed_stats = filtered_detailed_stats
+        
+        # Also filter model_detailed_stats to only show data for models used by this user
+        filtered_model_stats = {}
+        for model, model_data in model_detailed_stats.items():
+            filtered_model_data = {}
+            for date, entries in model_data.items():
+                filtered_entries = []
+                for entry in entries:
+                    if 'apis' in entry and requesting_user_name in entry['apis']:
+                        # Create new entry with only this user's data
+                        filtered_entry = {
+                            'time': entry['time'],
+                            'cost': entry['apis'][requesting_user_name],
+                            'apis': {requesting_user_name: entry['apis'][requesting_user_name]}
+                        }
+                        filtered_entries.append(filtered_entry)
+                if filtered_entries:
+                    filtered_model_data[date] = filtered_entries
+            if filtered_model_data:
+                filtered_model_stats[model] = filtered_model_data
+        model_detailed_stats = filtered_model_stats
+    
+    # Calculate weekly statistics
+    print("📊 Calculating weekly statistics...")
+    weekly_stats = calculate_weekly_statistics(all_redis_data, api_stats)
     
     # Get user messages from memory cache and validate users still exist
     validated_messages = {}
@@ -1626,9 +1795,11 @@ async def get_all_stats(request: QueryRequest, http_request: Request, leave_mess
         'accounts': accounts,
         'detailed_stats': detailed_stats,
         'model_detailed_stats': model_detailed_stats,
+        'weekly_stats': weekly_stats,  # Add weekly statistics
         'model_map': MODEL_MAP,  # Add model map to response
         'query_time': datetime.now(timezone.utc).isoformat(),
-        'authenticated_user': requesting_user_name  # Add authenticated user name
+        'authenticated_user': requesting_user_name,  # Add authenticated user name
+        'localhost': requesting_user_name in ADMIN_LIST  # localhost=true means admin user
     }
     
     # If authenticated via API key, include the auth token in response

@@ -622,7 +622,6 @@
     /* Tooltip for cost details */
     .cost-cell {
       position: relative;
-      cursor: pointer;
     }
 
     .cost-tooltip {
@@ -1774,70 +1773,32 @@
     }
 
     function createWeeklyWindowCard(account, userWeeklyCosts) {
-      const now = new Date();
-      
-      // Calculate this week's Monday and Sunday
-      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days
-      
-      const monday = new Date(now);
-      monday.setDate(now.getDate() + mondayOffset);
-      monday.setHours(0, 0, 0, 0);
-      
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
-      
-      // Calculate time progress (current time to end of Sunday)
-      const totalWeekDuration = sunday - monday;
-      const elapsed = now - monday;
-      const remaining = sunday - now;
-      const timeProgress = Math.min((elapsed / totalWeekDuration) * 100, 100);
-      
-      // Format remaining time
-      const remainingDays = Math.floor(remaining / (1000 * 60 * 60 * 24));
-      const remainingHours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const remainingMinutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-      
-      let remainingText = '';
-      if (remainingDays > 0) {
-        remainingText = `剩余 ${remainingDays}天${remainingHours}小时${remainingMinutes}分钟`;
-      } else if (remainingHours > 0) {
-        remainingText = `剩余 ${remainingHours}小时${remainingMinutes}分钟`;
-      } else {
-        remainingText = `剩余 ${remainingMinutes}分钟`;
+      // Use weekly statistics from backend
+      if (!statsData || !statsData.weekly_stats) {
+        // Return a default card if no weekly stats available
+        const card = document.createElement('div');
+        card.className = 'account-card';
+        card.innerHTML = `
+          <div class="account-name">
+            <i class="fas fa-calendar-week"></i>
+            周统计（加载中...）
+          </div>
+        `;
+        return card;
       }
       
-      // Calculate weekly cost from all models in statsData
-      let weeklyCost = 0;
-      if (statsData && statsData.model_detailed_stats) {
-        const weekStartInt = timeToInt(monday);
-        const weekEndInt = timeToInt(sunday);
-        
-        // Iterate through all models
-        Object.keys(statsData.model_detailed_stats).forEach(modelName => {
-          const modelData = statsData.model_detailed_stats[modelName];
-          
-          Object.keys(modelData).forEach(dateStr => {
-            const dateInt = timeToInt(dateStr)
-            // Check if this date is within this week
-            if (dateInt >= weekStartInt && dateInt <= weekEndInt) {
-              const dayData = modelData[dateStr];
-              if (dayData && Array.isArray(dayData)) {
-                dayData.forEach(entry => {
-                  if (entry.cost) {
-
-                    weeklyCost += entry.cost;
-                  }
-                });
-              }
-            }
-          });
-        });
-      }
+      const weeklyStats = statsData.weekly_stats;
+      const timeProgress = weeklyStats.timeProgress;
+      const remainingText = weeklyStats.remainingText;
+      const weeklyCost = weeklyStats.weeklyCost;
+      const weeklyLimit = weeklyStats.weeklyLimit;
+      const costPercentage = weeklyStats.costPercentage;
+      const weekRange = weeklyStats.weekRange;
       
-      const weeklyLimit = 120 * 30; // 3600
-      const costPercentage = Math.min((weeklyCost / weeklyLimit) * 100, 100);
+      // Use userWeeklyCosts from backend if available
+      if (weeklyStats.userWeeklyCosts) {
+        userWeeklyCosts = weeklyStats.userWeeklyCosts;
+      }
       
       // Determine color class based on percentage
       let costColorClass = 'window-low';
@@ -1850,21 +1811,6 @@
       } else {
         costColorClass = 'window-low';
       }
-      
-      // Format week range with full dates
-      const mondayStr = `${monday.getFullYear()}年${monday.getMonth() + 1}月${monday.getDate()}日`;
-      const sundayStr = `${sunday.getFullYear()}年${sunday.getMonth() + 1}月${sunday.getDate()}日`;
-      
-      // Calculate which week of the month this is
-      const firstDayOfMonth = new Date(monday.getFullYear(), monday.getMonth(), 1);
-      const mondayOfFirstWeek = new Date(firstDayOfMonth);
-      const firstDayWeekDay = firstDayOfMonth.getDay();
-      const firstMondayOffset = firstDayWeekDay === 0 ? -6 : 1 - firstDayWeekDay;
-      mondayOfFirstWeek.setDate(firstDayOfMonth.getDate() + firstMondayOffset);
-      
-      const weekNumber = Math.floor((monday - mondayOfFirstWeek) / (7 * 24 * 60 * 60 * 1000)) + 1;
-      
-      const weekRange = `${mondayStr} - ${sundayStr}，第${weekNumber}周`;
       
       // Create card
       const card = document.createElement('div');
@@ -1935,45 +1881,16 @@
       let userWeeklyCosts = [];
       
       if (statsData && statsData.data) {
+        // 窗口消耗数据
         statsData.data.forEach(key => {
-          // 窗口消耗
           const windowCost = (key.window_info && key.window_info.cost !== undefined) ? key.window_info.cost : 0;
           userWindowCosts.push({ name: key.name, cost: windowCost });
-          
-          // 计算实际的周消耗（从 model_detailed_stats 中计算）
-          let weeklyCost = 0;
-          const now = new Date();
-          const dayOfWeek = now.getDay();
-          const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-          
-          const monday = new Date(now);
-          monday.setDate(now.getDate() + mondayOffset);
-          monday.setHours(0, 0, 0, 0);
-          
-          const sunday = new Date(monday);
-          sunday.setDate(monday.getDate() + 6);
-          sunday.setHours(23, 59, 59, 999);
-          
-          const weekStartStr = monday.toISOString().split('T')[0];
-          const weekEndStr = sunday.toISOString().split('T')[0];
-          
-          // 从 detailed_stats 中计算这个用户的周消耗
-          if (statsData.detailed_stats && statsData.detailed_stats[key.name]) {
-            const userDetailedStats = statsData.detailed_stats[key.name];
-            Object.keys(userDetailedStats).forEach(dateStr => {
-              if (dateStr >= weekStartStr && dateStr <= weekEndStr) {
-                const dayData = userDetailedStats[dateStr];
-                if (dayData && Array.isArray(dayData)) {
-                  dayData.forEach(entry => {
-                    weeklyCost += entry.cost || 0;
-                  });
-                }
-              }
-            });
-          }
-          
-          userWeeklyCosts.push({ name: key.name, cost: weeklyCost });
         });
+        
+        // 使用后端提供的周统计数据
+        if (statsData.weekly_stats && statsData.weekly_stats.userWeeklyCosts) {
+          userWeeklyCosts = statsData.weekly_stats.userWeeklyCosts;
+        }
       }
       
       // Check if there are any active window accounts
@@ -1992,7 +1909,9 @@
       // Add weekly window statistics first if no active windows
       if (!hasActiveWindows && accounts.length > 0) {
         const weeklyCard = createWeeklyWindowCard(accounts[0], userWeeklyCosts);
-        accountsGrid.appendChild(weeklyCard);
+        if (weeklyCard) {
+          accountsGrid.appendChild(weeklyCard);
+        }
       }
       
       accounts.forEach(account => {
@@ -2089,7 +2008,9 @@
       // Add weekly window statistics after regular window statistics if there are active windows
       if (hasActiveWindows && accounts.length > 0) {
         const weeklyCard = createWeeklyWindowCard(accounts[0], userWeeklyCosts);
-        accountsGrid.appendChild(weeklyCard);
+        if (weeklyCard) {
+          accountsGrid.appendChild(weeklyCard);
+        }
       }
       
       if (accountsGrid.children.length > 0) {
@@ -2894,7 +2815,13 @@
           const totalModelCost = stats.monthly ? stats.monthly.cost : 0;
           const costDisplay = totalModelCost > 0 ? ` ($${totalModelCost.toFixed(2)})` : '';
           
-          return `<span class="model-tag ${modelClass}" onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');" style="cursor: pointer;">${shortModel}${costDisplay}${tooltipContent}</span>`;
+          const isLocalhost = statsData && statsData.localhost === true;
+          const clickHandler = isLocalhost ? `onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');"` : '';
+          const cursorStyle = isLocalhost ? 'cursor: pointer;' : 'cursor: default;';
+          
+          const finalModelClass = (!isLocalhost && modelClass === 'badge-gray') ? '' : modelClass;
+          
+          return `<span class="model-tag ${finalModelClass}" ${clickHandler} style="${cursorStyle}">${shortModel}${costDisplay}${tooltipContent}</span>`;
         }).join('');
         
         row.innerHTML = `
@@ -2903,7 +2830,7 @@
           <td>${createWindowCostCell(key, data.accounts, data.data)}</td>
           <td>${formatNumberWithTooltip(key.today_requests)}</td>
           <td>${formatNumberWithTooltip(key.today_tokens)}</td>
-          <td onclick="showHourlyDetailedStats('${key.name}')" style="cursor: pointer;">${createCostCell(key, index === 0)}</td>
+          <td ${statsData && statsData.localhost === true ? `onclick="showHourlyDetailedStats('${key.name}')"` : ''} style="${statsData && statsData.localhost === true ? 'cursor: pointer;' : 'cursor: default;'}">${createCostCell(key, index === 0)}</td>
           <td class="cost-value">${formatCost(key.month_cost)}</td>
           <td>${createLimitsInfo(key)}</td>
           <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
@@ -3317,7 +3244,13 @@
           const totalModelCost = stats.monthly ? stats.monthly.cost : 0;
           const costDisplay = totalModelCost > 0 ? ` ($${totalModelCost.toFixed(2)})` : '';
           
-          return `<span class="model-tag ${modelClass}" onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');" style="cursor: pointer;">${shortModel}${costDisplay}${tooltipContent}</span>`;
+          const isLocalhost = statsData && statsData.localhost === true;
+          const clickHandler = isLocalhost ? `onclick="event.stopPropagation(); showModelStats('${model}', '${key.name}');"` : '';
+          const cursorStyle = isLocalhost ? 'cursor: pointer;' : 'cursor: default;';
+          
+          const finalModelClass = (!isLocalhost && modelClass === 'badge-gray') ? '' : modelClass;
+          
+          return `<span class="model-tag ${finalModelClass}" ${clickHandler} style="${cursorStyle}">${shortModel}${costDisplay}${tooltipContent}</span>`;
         }).join('');
         
         row.innerHTML = `
@@ -3326,7 +3259,7 @@
           <td>${createWindowCostCell(key, data.accounts, data.data)}</td>
           <td>${formatNumberWithTooltip(key.today_requests)}</td>
           <td>${formatNumberWithTooltip(key.today_tokens)}</td>
-          <td onclick="showHourlyDetailedStats('${key.name}')" style="cursor: pointer;">${createCostCell(key, index === 0)}</td>
+          <td ${statsData && statsData.localhost === true ? `onclick="showHourlyDetailedStats('${key.name}')"` : ''} style="${statsData && statsData.localhost === true ? 'cursor: pointer;' : 'cursor: default;'}">${createCostCell(key, index === 0)}</td>
           <td class="cost-value">${formatCost(key.month_cost)}</td>
           <td>${createLimitsInfo(key)}</td>
           <td><div class="model-list">${modelsHtml || '<span class="badge badge-warning">无</span>'}</div></td>
